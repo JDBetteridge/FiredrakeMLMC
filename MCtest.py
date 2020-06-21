@@ -46,17 +46,16 @@ def MC(mesh_size, levels, mult):
 
         solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
         solutions.append(uh)
+    
+    estimate = sum(solutions)/Constant(levels)
+    end = time.time()
+    print("Runtime: ", end - start, "s") 
 
     f = Constant(mult/2)*base_f
     L = f*v*dx
     u_real = Function(V)
     solve(a == L, u_real, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
 
-    estimate = sum(solutions)/Constant(levels)
-    print(type(estimate))
-    print(type(interpolate(estimate, V)))
-    end = time.time()
-    print(end-start)
     difference = assemble(estimate-u_real)
     fig, axes = plt.subplots()
     collection = tripcolor(difference, axes=axes, cmap='coolwarm')
@@ -151,16 +150,25 @@ def MLMC_failed(mesh_sizes, repititions, mult):
 
 
 def MLMC_hier(coarse_size, levels, repititions, mult):
+    """
+    arg: coarse_size - dimension of face of Unit Square Mesh on coarsest level
+         levels - number of levels in MLMC
+         repititions (list) - repititions at each level starting at coarsest
+         mult - multiplier on equartion to generate probability distribution
+    """
     start = time.time()
 
     solutions = []
+    # Random Seed
     rg = RandomGenerator(MT19937(12345))
 
+    # Initialise hierarchy
     coarse_mesh = UnitSquareMesh(coarse_size, coarse_size)
     hierarchy = MeshHierarchy(coarse_mesh, levels-1, 1)
-
+    # Initialise function space at finest level
     V_high = FunctionSpace(hierarchy[-1], "Lagrange", 4)
 
+    # Iterate through each level in hierarchy
     for i in range(len(hierarchy)):
         mesh_f = hierarchy[i]
         
@@ -168,7 +176,8 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
         triplot(mesh_f, axes=axes)
         axes.legend()
 
-
+        # each iteration considers level l (_f) and l-1 (_c)
+        # _f is the finer of the two levels
         V_f = FunctionSpace(mesh_f, "Lagrange", 4)
         u_f = TrialFunction(V_f)
         v_f = TestFunction(V_f)
@@ -179,6 +188,7 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
         bcs_f = DirichletBC(V_f, 0, (1,2,3,4))
 
         if i-1 >= 0:  
+            # _c is coarser of the two levels
             mesh_c = hierarchy[i-1]
 
             V_c = FunctionSpace(mesh_c, "Lagrange", 4)
@@ -191,12 +201,13 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
             bcs_c = DirichletBC(V_c, 0, (1,2,3,4))
 
         sub_solutions = []
-
+        # By this point function/ function spaces have been set up
+        # Sampling now begins
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
             
             rand_multiplier = Constant(mult*rg.random_sample())
-            
+            # Element of randomness incorperated
             f_f = rand_multiplier*f_base_f
             L_f = f_f * v_f * dx 
             uh_f = Function(V_f)
@@ -216,27 +227,29 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
             else:
                 sub_solutions.append(uh_f)
         
+        # This sum corresponds to the inner sum in the MLMC eqn.
+        # This and prolong() is expensive when you have many repititions
         level_result = sum(sub_solutions)/Constant(repititions[i])
         
-        level_result = interpolate(level_result, V_f)
-        
-        
         if i != (levels - 1):
+            # Interpolate to turn back into a function to allow prolong()
+            level_result = interpolate(level_result, V_f)
             temp = Function(V_high)
             prolong(level_result, temp)
             level_result = temp
 
         solutions.append(level_result)
     
+    # Outer sum in MLMC eqn.
+    end = time.time()
+    print("Runtime: ", end - start, "s")
+    estimate = sum(solutions)
+    
+    # Generate a ground truth result
     f = Constant(mult/2)*f_base_f
     L = f*v_f*dx
     u_real = Function(V_high)
     solve(a_f == L, u_real, bcs=bcs_f, solver_parameters={'ksp_type': 'cg'})
-
-    estimate = sum(solutions)
-    
-    end = time.time()
-    print(end - start)
 
     difference = assemble(estimate - u_real)
     fig, axes = plt.subplots()
@@ -336,7 +349,7 @@ def test1():
 
 
 if __name__ == '__main__':
-    print(MC(40, 50, 20))
+    #print(MC(40, 50, 20))
     #print(MLMC([10,20,40], [50,10,5], 20))
     #print(test1())
-    #print(MLMC_hier(10, 3, [50,10, 5], 20))
+    print(MLMC_hier(10, 3, [50,10, 5], 20))
