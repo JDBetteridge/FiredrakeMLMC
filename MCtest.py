@@ -155,6 +155,7 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
          levels - number of levels in MLMC
          repititions (list) - repititions at each level starting at coarsest
          mult - multiplier on equartion to generate probability distribution
+    output: errornorm between ground truth and result
     """
     start = time.time()
 
@@ -260,6 +261,148 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
     
     return errornorm(u_real, interpolate(estimate, V_high))
 
+def prob(mesh, uh, alpha=1):
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    x, y = SpatialCoordinate(mesh)
+    base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+    a = (dot(grad(v), grad(u)) + v * u) * dx
+
+    bcs = DirichletBC(V, 0, (1,2,3,4))
+
+    f = alpha*base_f
+    L = f * v * dx
+    return LinearVariationalProblem(a, L, uh, bcs=bcs)
+
+def MLMC_general(coarse_fspace, levels, repititions, samples, problem, solver_parameters, isLinear=True, isEval=True):
+    """
+    arg: coarse_size - dimension of face of Unit Square Mesh on coarsest level
+         levels - number of levels in MLMC
+         repititions (list) - repititions at each level starting at coarsest
+         mult - multiplier on equartion to generate probability distribution
+    output: errornorm between ground truth and result
+    """
+    start = time.time()
+
+    assert len(repititions) == levels, ("The levels arguement is not equal to"
+                                        " the number of entries in the iterable")
+
+    assert len(samples) == sum(repititions), ("Number of samples and sum of "
+                                                "repetitions do not match.")
+
+
+    solutions = []
+
+    coarse_mesh = coarse_fspace.mesh()
+    family = coarse_fspace.ufl_element().family()
+    degree = coarse_fspace.ufl_element().degree()
+
+    hierarchy = MeshHierarchy(coarse_mesh, levels-1, 1)
+    # Initialise function space at finest level
+    V_high = FunctionSpace(hierarchy[-1], family, degree)
+    sample_i = 0
+    # Iterate through each level in hierarchy
+    for i in range(len(hierarchy)):
+        mesh_f = hierarchy[i]
+
+        # each iteration considers level l (_f) and l-1 (_c)
+        # _f is the finer of the two levels
+        
+        if i-1 >= 0:  
+            # _c is coarser of the two levels
+            mesh_c = hierarchy[i-1]
+
+        sub_solutions = []
+        # By this point function/ function spaces have been set up
+        # Sampling now begins
+        for j in range(repititions[i]):
+            print("Sample {} of {}".format(j+1, repititions[i]))
+            
+            # Call problem fuction
+            V_f = FunctionSpace(mesh_f, family, degree)
+            uh_f = Function(V_f)
+            vp_f = problem(mesh_f, uh_f, samples[sample_i])
+
+            if isLinear:
+                vs_f = LinearVariationalSolver(vp_f, solver_parameters=solver_parameters)
+            else:
+                vs_f = NonlinearVariationalSolver(vp_f, solver_parameters=solver_parameters)
+            
+            vs_f.solve()
+        
+            if i-1 >= 0:  
+                V_c = FunctionSpace(mesh_c, family, degree)
+                uh_c = Function(V_c)
+                vp_c = problem(mesh_c, uh_c, samples[sample_i])
+                if isLinear:
+                    vs_c = LinearVariationalSolver(vp_c, solver_parameters=solver_parameters)
+                else:
+                    vs_c = NonlinearVariationalSolver(vp_c, solver_parameters=solver_parameters)
+                
+                vs_c.solve()
+
+                uh_c2 = Function(V_f)
+                prolong(uh_c, uh_c2)
+                
+                sub_solutions.append(uh_f - uh_c2)
+            else:
+                sub_solutions.append(uh_f)
+            
+            sample_i += 1  
+        
+        # This sum corresponds to the inner sum in the MLMC eqn.
+        # This and prolong() is expensive when you have many repititions
+        level_result = sum(sub_solutions)/Constant(repititions[i])
+        
+        if i != (levels - 1):
+            # Interpolate to turn back into a function to allow prolong()
+            level_result = interpolate(level_result, V_f)
+            temp = Function(V_high)
+            prolong(level_result, temp)
+            level_result = temp
+
+              
+        solutions.append(level_result)
+    
+    # Outer sum in MLMC eqn.
+    end = time.time()
+    print("Runtime: ", end - start, "s")
+    estimate = sum(solutions)
+    
+    if isEval:
+        # Generate a ground truth result
+        uh_true = Function(V_f)
+        # Input number manually
+        vp_true = problem(mesh_f, uh_true, Constant(10))
+        if isLinear:
+            vs_true = LinearVariationalSolver(vp_true, solver_parameters=solver_parameters)
+        else:
+            vs_true = NonlinearVariationalSolver(vp_true, solver_parameters=solver_parameters)
+        vs_true.solve()
+
+        difference = assemble(estimate - uh_true)
+        fig, axes = plt.subplots()
+        collection = tripcolor(difference, axes=axes, cmap='coolwarm')
+        fig.colorbar(collection)
+
+        plt.show()
+        
+        print(errornorm(uh_true, interpolate(estimate, V_high)))
+    
+    return estimate
+
+def general_test():
+    levels = 3
+    repititions = [50, 10, 5]
+    rg = RandomGenerator(MT19937(12345))
+    samples = [Constant(20*rg.random_sample()) for i in range(sum(repititions))]
+    
+    coarse_mesh = UnitSquareMesh(10, 10)
+    V = FunctionSpace(coarse_mesh, "Lagrange", 4)
+    MLMC_general(V, levels, repititions, samples, prob, {'ksp_type':'cg'}, True, True)
+
 
 def test1():
     
@@ -274,6 +417,10 @@ def test1():
 
 
     V = FunctionSpace(mesh, "Lagrange", 4)
+    print(V.mesh())
+    print(V.ufl_element().family())
+    print(V.ufl_element().degree())
+    
     u = TrialFunction(V)
     v = TestFunction(V)
 
@@ -317,19 +464,6 @@ def test1():
     triplot(mesh, axes=axes)
     axes.legend()
 
-    """
-    V = FunctionSpace(mesh, "Lagrange", 4)
-    u = TrialFunction(V)
-    v = TestFunction(V)
-
-    x, y = SpatialCoordinate(mesh)
-    f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-    a = (dot(grad(v), grad(u)) + v * u) * dx
-
-    bcs = DirichletBC(V, 0, (1,2,3,4))
-
-    L = f * v * dx 
-    """
     uh3 = Function(V)
 
     #solve(a == L, uh3, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
@@ -352,4 +486,6 @@ if __name__ == '__main__':
     #print(MC(40, 50, 20))
     #print(MLMC([10,20,40], [50,10,5], 20))
     #print(test1())
-    print(MLMC_hier(10, 3, [50,10, 5], 20))
+    #print(MLMC_hier(10, 3, [50,10, 5], 20))
+    #print(MLMC_general(10, 3, [50,10, 5], 20, [1]))
+    #general_test()
