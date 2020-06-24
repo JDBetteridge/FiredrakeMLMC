@@ -291,8 +291,7 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
     assert len(samples) == sum(repititions), ("Number of samples and sum of "
                                                 "repetitions do not match.")
 
-
-    solutions = []
+    solutions = P_sums()
 
     coarse_mesh = coarse_fspace.mesh()
     family = coarse_fspace.ufl_element().family()
@@ -304,56 +303,41 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
     sample_i = 0
     # Iterate through each level in hierarchy
     for i in range(len(hierarchy)):
-        mesh_f = hierarchy[i]
 
-        # each iteration considers level l (_f) and l-1 (_c)
-        # _f is the finer of the two levels
-        
-        if i-1 >= 0:  
-            # _c is coarser of the two levels
-            mesh_c = hierarchy[i-1]
-
-        sub_solutions = []
+        sub_solutions = P_sums()
         # By this point function/ function spaces have been set up
         # Sampling now begins
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
             
-            V_f = FunctionSpace(mesh_f, family, degree)
-            
-            # Call problem fuction
-            uh_f = problem(mesh_f, samples[sample_i])
-        
-            if i-1 >= 0:  
-                uh_c = problem(mesh_c, samples[sample_i])
-                
-                uh_c2 = Function(V_f)
-                prolong(uh_c, uh_c2)
-                
-                sub_solutions.append(uh_f - uh_c2)
-            else:
-                sub_solutions.append(uh_f)
+            term = P_term(samples[sample_i], hierarchy, i)
+            term.calculate()
+            sub_solutions.add_term(term)
             
             sample_i += 1  
         
         # This sum corresponds to the inner sum in the MLMC eqn.
         # This and prolong() is expensive when you have many repititions
-        level_result = sum(sub_solutions)/Constant(repititions[i])
+        level_result = sub_solutions.average_terms()
         
+        # Want to do all prolonging at the end
+        """
         if i != (levels - 1):
             # Interpolate to turn back into a function to allow prolong()
             level_result = interpolate(level_result, V_f)
             temp = Function(V_high)
             prolong(level_result, temp)
             level_result = temp
-
+        """
               
-        solutions.append(level_result)
+        solutions.add_term(level_result)
     
+    estimate = solutions.sum_terms()
+
     # Outer sum in MLMC eqn.
     end = time.time()
     print("Runtime: ", end - start, "s")
-    estimate = sum(solutions)
+    #estimate = sum(solutions)
     
     if isEval:
         uh_true = problem(mesh_f, Constant(10))
@@ -456,12 +440,114 @@ def test1():
     plt.show()
     return errornorm(uh2, uh3)
 
+class P_sums:
+    def __init__(self):
+        self._terms = []
+    
+    def add_term(self, p_term):
+        self._terms.append(p_term)
+    
+    def average_terms(self):
+        current_space = self._terms[0].current_space()
+        result = sum(self._terms)/Constant(len(self._terms))
+        # Maybe only interpolate the ones which need to be prolonged
+        return interpolate(result, current_space)
+    
+    def sum_terms(self):
+        # do all prolonging at end
+        self.sanitise()
+        return sum(self._terms)
+    
+    def sanitise(self):
+        fine_term = self._terms[-1]
+        V_high = fine_term.fine_space()
+        for term in self._terms:
+            if term._level+1 != len(term._hierarchy):
+                temp = Function(V_high)
+                prolong(term._value, temp)
+                term._value = temp
+
+
+
+
 class P_term:
     
-    def __init__(self, sample, level, max_level):
+    def __init__(self, sample, hierarchy, level):
         self._sample = sample
         self._level = level
-        self._max_level = max_level
+        self._hierachy = hierarchy
+        self._value = None
+    
+    def __add__(self, other):
+        if self._value == None or other._value == None:
+            print("Both terms in sum need to have been calculated before they can be summed")
+            return None
+        else:
+            self._value += other._value
+            return self
+    
+    def __radd__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__add__(other)
+    
+    def fine_space(self):
+        fine_mesh = self.hierarchy[-1]
+        family = self._value.function_space().family()
+        degree = self._value.function_space().degree()
+        return FunctionSpace(fine_mesh, family, degree)
+     
+    def current_space(self):
+        fine_mesh = self.hierarchy[level]
+        family = self._value.function_space().family()
+        degree = self._value.function_space().degree()
+        return FunctionSpace(fine_mesh, family, degree)
+    
+    def problem(self, mesh):
+        V = FunctionSpace(mesh, "Lagrange", 4)
+        u = TrialFunction(V)
+        v = TestFunction(V)
+        x, y = SpatialCoordinate(mesh)
+        base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+        a = (dot(grad(v), grad(u)) + v * u) * dx
+        bcs = DirichletBC(V, 0, (1,2,3,4))
+
+        f = self._sample*base_f
+        L = f * v * dx
+        uh = Function(V)
+        solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+        return uh
+
+    def calculate(self):
+        if self._value != None:
+            print("Error: Already calculated")
+            return 1
+
+        mesh_f = self._hierachy[self._level]
+        V_f = FunctionSpace(mesh_f, family, degree)
+        
+        # Call problem fuction
+        uh_f = self.problem(mesh_f)
+    
+        if i-1 >= 0:  
+            mesh_c = hierarchy[self._level-1]
+            uh_c = self.problem(mesh_c)
+                
+            uh_c2 = Function(V_f)
+            prolong(uh_c, uh_c2)
+            
+            self._value =  uh_f - uh_c2
+        else:
+            self._value = uh_f
+        return 0
+            
+        
+       
+
+
+    
+    
 
 if __name__ == '__main__':
     #print(MC(40, 50, 20))
