@@ -9,15 +9,10 @@ for i in range(10):
     print(rg.random_sample())
 
 """
-def MC(mesh_size, levels, mult):
+def MC(mesh_size, iterations, mult):
     start = time.time()
 
     mesh = UnitSquareMesh(mesh_size, mesh_size)
-
-    fig, axes = plt.subplots()
-    triplot(mesh, axes=axes)
-    axes.legend()
-
 
     V = FunctionSpace(mesh, "Lagrange", 4)
     u = TrialFunction(V)
@@ -32,11 +27,8 @@ def MC(mesh_size, levels, mult):
     rg = RandomGenerator(MT19937(12345))
     solutions = []
 
-    #levels = 50
-    #mult = 20
-
-    for i in range(levels):
-        print("Sample {} of {}".format(i+1, levels))
+    for i in range(iterations):
+        print("Sample {} of {}".format(i+1, iterations))
         rand_multiplier = Constant(mult*rg.random_sample())
         f = rand_multiplier*base_f
 
@@ -47,7 +39,8 @@ def MC(mesh_size, levels, mult):
         solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
         solutions.append(uh)
     
-    estimate = sum(solutions)/Constant(levels)
+    estimate = sum(solutions)/Constant(iterations)
+    
     end = time.time()
     print("Runtime: ", end - start, "s") 
 
@@ -261,7 +254,7 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
     
     return errornorm(u_real, interpolate(estimate, V_high))
 
-def prob(mesh, uh, alpha=1):
+def prob(mesh, alpha=1):
     V = FunctionSpace(mesh, "Lagrange", 4)
     u = TrialFunction(V)
     v = TestFunction(V)
@@ -274,15 +267,21 @@ def prob(mesh, uh, alpha=1):
 
     f = alpha*base_f
     L = f * v * dx
-    return LinearVariationalProblem(a, L, uh, bcs=bcs)
 
-def MLMC_general(coarse_fspace, levels, repititions, samples, problem, solver_parameters, isLinear=True, isEval=True):
+    uh = Function(V)
+
+    solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+
+    return uh
+
+def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=True):
     """
-    arg: coarse_size - dimension of face of Unit Square Mesh on coarsest level
+    arg: coarse_fspace - FunctionSpace object on coarsest mesh
          levels - number of levels in MLMC
          repititions (list) - repititions at each level starting at coarsest
-         mult - multiplier on equartion to generate probability distribution
-    output: errornorm between ground truth and result
+         samples (list) - list of all samples
+         problem - user defined function returning a variational problem (one input being a sample)
+    output: Estimate of value
     """
     start = time.time()
 
@@ -320,29 +319,14 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, solver_pa
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
             
-            # Call problem fuction
             V_f = FunctionSpace(mesh_f, family, degree)
-            uh_f = Function(V_f)
-            vp_f = problem(mesh_f, uh_f, samples[sample_i])
-
-            if isLinear:
-                vs_f = LinearVariationalSolver(vp_f, solver_parameters=solver_parameters)
-            else:
-                vs_f = NonlinearVariationalSolver(vp_f, solver_parameters=solver_parameters)
             
-            vs_f.solve()
+            # Call problem fuction
+            uh_f = problem(mesh_f, samples[sample_i])
         
             if i-1 >= 0:  
-                V_c = FunctionSpace(mesh_c, family, degree)
-                uh_c = Function(V_c)
-                vp_c = problem(mesh_c, uh_c, samples[sample_i])
-                if isLinear:
-                    vs_c = LinearVariationalSolver(vp_c, solver_parameters=solver_parameters)
-                else:
-                    vs_c = NonlinearVariationalSolver(vp_c, solver_parameters=solver_parameters)
+                uh_c = problem(mesh_c, samples[sample_i])
                 
-                vs_c.solve()
-
                 uh_c2 = Function(V_f)
                 prolong(uh_c, uh_c2)
                 
@@ -372,15 +356,7 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, solver_pa
     estimate = sum(solutions)
     
     if isEval:
-        # Generate a ground truth result
-        uh_true = Function(V_f)
-        # Input number manually
-        vp_true = problem(mesh_f, uh_true, Constant(10))
-        if isLinear:
-            vs_true = LinearVariationalSolver(vp_true, solver_parameters=solver_parameters)
-        else:
-            vs_true = NonlinearVariationalSolver(vp_true, solver_parameters=solver_parameters)
-        vs_true.solve()
+        uh_true = problem(mesh_f, Constant(10))
 
         difference = assemble(estimate - uh_true)
         fig, axes = plt.subplots()
@@ -401,7 +377,7 @@ def general_test():
     
     coarse_mesh = UnitSquareMesh(10, 10)
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
-    MLMC_general(V, levels, repititions, samples, prob, {'ksp_type':'cg'}, True, True)
+    MLMC_general(V, levels, repititions, samples, prob, True)
 
 
 def test1():
@@ -480,7 +456,12 @@ def test1():
     plt.show()
     return errornorm(uh2, uh3)
 
-
+class P_term:
+    
+    def __init__(self, sample, level, max_level):
+        self._sample = sample
+        self._level = level
+        self._max_level = max_level
 
 if __name__ == '__main__':
     #print(MC(40, 50, 20))
@@ -488,4 +469,4 @@ if __name__ == '__main__':
     #print(test1())
     #print(MLMC_hier(10, 3, [50,10, 5], 20))
     #print(MLMC_general(10, 3, [50,10, 5], 20, [1]))
-    #general_test()
+    general_test()
