@@ -237,6 +237,7 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
     # Outer sum in MLMC eqn.
     end = time.time()
     print("Runtime: ", end - start, "s")
+    print(type(solutions[0]))
     estimate = sum(solutions)
     
     # Generate a ground truth result
@@ -245,6 +246,7 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
     u_real = Function(V_high)
     solve(a_f == L, u_real, bcs=bcs_f, solver_parameters={'ksp_type': 'cg'})
 
+    print(type(estimate), type(u_real))
     difference = assemble(estimate - u_real)
     fig, axes = plt.subplots()
     collection = tripcolor(difference, axes=axes, cmap='coolwarm')
@@ -310,7 +312,7 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
             
-            term = P_term(samples[sample_i], hierarchy, i)
+            term = P_term(samples[sample_i], hierarchy, i, "Lagrange", 4)
             term.calculate()
             sub_solutions.add_term(term)
             
@@ -329,29 +331,29 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
             prolong(level_result, temp)
             level_result = temp
         """
-              
+        print("*", type(level_result._value))
         solutions.add_term(level_result)
     
+    print("----")
     estimate = solutions.sum_terms()
+    print("**",type(estimate._value))
 
     # Outer sum in MLMC eqn.
     end = time.time()
     print("Runtime: ", end - start, "s")
     #estimate = sum(solutions)
-    
-    if isEval:
-        uh_true = problem(mesh_f, Constant(10))
-
-        difference = assemble(estimate - uh_true)
-        fig, axes = plt.subplots()
-        collection = tripcolor(difference, axes=axes, cmap='coolwarm')
-        fig.colorbar(collection)
-
-        plt.show()
-        
-        print(errornorm(uh_true, interpolate(estimate, V_high)))
-    
     return estimate
+
+def eval_soln(estimate, mult, mesh_f):
+    
+    uh_true = prob(mesh_f, mult)
+    print(type(estimate), type(uh_true))
+    difference = estimate - uh_true
+    fig, axes = plt.subplots()
+    collection = tripcolor(difference, axes=axes, cmap='coolwarm')
+    fig.colorbar(collection)
+
+    plt.show()
 
 def general_test():
     levels = 3
@@ -361,7 +363,10 @@ def general_test():
     
     coarse_mesh = UnitSquareMesh(10, 10)
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
-    MLMC_general(V, levels, repititions, samples, prob, True)
+    estimate = MLMC_general(V, levels, repititions, samples, prob, True)
+
+    fine_mesh = UnitSquareMesh(40, 40)
+    eval_soln(estimate._value, Constant(10), fine_mesh)
 
 
 def test1():
@@ -448,14 +453,18 @@ class P_sums:
         self._terms.append(p_term)
     
     def average_terms(self):
-        current_space = self._terms[0].current_space()
+        #current_space = self._terms[0].current_space()
         result = sum(self._terms)/Constant(len(self._terms))
         # Maybe only interpolate the ones which need to be prolonged
-        return interpolate(result, current_space)
+        result.interpolate_sum()
+        return result
     
     def sum_terms(self):
         # do all prolonging at end
         self.sanitise()
+        print("*", type(self._terms[0]._value))
+        ans = sum(self._terms)
+        print(type(ans._value))
         return sum(self._terms)
     
     def sanitise(self):
@@ -472,11 +481,13 @@ class P_sums:
 
 class P_term:
     
-    def __init__(self, sample, hierarchy, level):
+    def __init__(self, sample, hierarchy, level, family, degree):
         self._sample = sample
         self._level = level
-        self._hierachy = hierarchy
+        self._hierarchy = hierarchy
         self._value = None
+        self._family = family
+        self._degree = degree
     
     def __add__(self, other):
         if self._value == None or other._value == None:
@@ -484,6 +495,7 @@ class P_term:
             return None
         else:
             self._value += other._value
+            print(type(self._value))
             return self
     
     def __radd__(self, other):
@@ -492,17 +504,28 @@ class P_term:
         else:
             return self.__add__(other)
     
+    def __truediv__(self, other):
+        if self._value == None:
+            print("P_term object needs to be calculated before division can be carried out")
+            return None
+        else:
+            self._value = self._value / other
+            return self
+    
+    def interpolate_sum(self):
+        self._value = interpolate(self._value, self.current_space())
+    
     def fine_space(self):
-        fine_mesh = self.hierarchy[-1]
-        family = self._value.function_space().family()
-        degree = self._value.function_space().degree()
+        fine_mesh = self._hierarchy[-1]
+        family = self._value.function_space().ufl_element().family()
+        degree = self._value.function_space().ufl_element().degree()
         return FunctionSpace(fine_mesh, family, degree)
      
     def current_space(self):
-        fine_mesh = self.hierarchy[level]
-        family = self._value.function_space().family()
-        degree = self._value.function_space().degree()
-        return FunctionSpace(fine_mesh, family, degree)
+        fine_mesh = self._hierarchy[self._level]
+        #family = self._value.function_space().ufl_element().family()
+        #degree = self._value.function_space().ufl_element().degree()
+        return FunctionSpace(fine_mesh, self._family, self._degree)
     
     def problem(self, mesh):
         V = FunctionSpace(mesh, "Lagrange", 4)
@@ -524,14 +547,14 @@ class P_term:
             print("Error: Already calculated")
             return 1
 
-        mesh_f = self._hierachy[self._level]
-        V_f = FunctionSpace(mesh_f, family, degree)
+        mesh_f = self._hierarchy[self._level]
+        V_f = FunctionSpace(mesh_f, self._family, self._degree)
         
         # Call problem fuction
         uh_f = self.problem(mesh_f)
     
-        if i-1 >= 0:  
-            mesh_c = hierarchy[self._level-1]
+        if self._level-1 >= 0:  
+            mesh_c = self._hierarchy[self._level-1]
             uh_c = self.problem(mesh_c)
                 
             uh_c2 = Function(V_f)
