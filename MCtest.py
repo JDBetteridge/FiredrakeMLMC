@@ -342,6 +342,55 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, isEval=True):
 
     return estimate
 
+def MLMC_general2(levels, repititions, samples, isEval=True):
+    """
+    arg: coarse_fspace - FunctionSpace object on coarsest mesh
+         levels - number of levels in MLMC
+         repititions (list) - repititions at each level starting at coarsest
+         samples (list) - list of all samples
+         isEval (bool) - whether or not evaluation should be run on result
+    output: Estimate of value
+    """
+    start = time.time()
+
+    assert len(repititions) == levels, \
+    ("The levels arguement is not equal to the number of entries in the iterable")
+
+    assert len(samples) == sum(repititions), \
+    ("Number of samples and sum of repetitions do not match.")
+
+    solver = MLMC_Solver(levels)
+
+    sample_i = 0
+    # Iterate through each level in hierarchy
+    for i in range(levels):
+        print("LEVEL {} - {} Samples".format(i+1, repititions[i]))
+
+        # By this point function/ function spaces have been set up
+        # Sampling now begins
+        for j in range(repititions[i]):
+            print("Sample {} of {}".format(j+1, repititions[i]))
+            
+            solver.addTerm(samples[sample_i], i)
+
+            sample_i += 1  # move to next sample
+        
+        # This sum corresponds to the inner sum in the MLMC eqn.
+        # This and prolong() is expensive when you have many repititions
+        # interpolate happens here too to make sum/ division a function again for prolong()
+        solver.calculateInnerSum()
+    
+    # Outer sum in MLMC eqn.
+    estimate = solver.calculateOuterSum()
+    
+    end = time.time()
+    print("Runtime: ", end - start, "s")
+
+    if isEval:
+        solver.eval_result()
+
+    return estimate
+
 def eval_soln(estimate, mult, mesh_f):
 
     uh_true = prob(mesh_f, mult)
@@ -368,7 +417,8 @@ def general_test():
     coarse_mesh = UnitSquareMesh(10, 10)
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
 
-    estimate = MLMC_general(V, levels, repititions, samples, True)
+    #estimate = MLMC_general(V, levels, repititions, samples, True)
+    estimate = MLMC_general2(levels, repititions, samples, True)
 
 
 def test1():
@@ -457,6 +507,8 @@ class MLMC_Solver:
         self._solutions = P_sums()
         self._sub_solutions = P_sums()
 
+        self._result = None
+
     def initialiseInnerSum(self):
         self._sub_solutions = P_sums()
     
@@ -468,10 +520,24 @@ class MLMC_Solver:
     def calculateInnerSum(self):
         level_result = self._sub_solutions.average_terms()
         self._solutions.add_term(level_result)
-        initialiseInnerSum()
+        self.initialiseInnerSum()
 
     def calculateOuterSum(self):
-        return self._solutions.sum_terms().get_value()
+        self._result = self._solutions.sum_terms().get_value()
+        return self._result
+    
+    def eval_result(self):
+        
+        uh_true = prob(self._hierarchy[-1], Constant(10))
+
+        difference = assemble(self._result - uh_true)
+
+        fig, axes = plt.subplots()
+        collection = tripcolor(difference, axes=axes, cmap='coolwarm')
+        fig.colorbar(collection)
+        plt.show()
+
+        print(errornorm(self._result, uh_true))
 
 
 class P_sums:
