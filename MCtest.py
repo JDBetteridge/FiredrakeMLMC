@@ -142,6 +142,83 @@ def MLMC_failed(mesh_sizes, repititions, mult):
     
     return errornorm(u_real, interpolate(estimate, V_high))
 
+def test1():
+    
+    coarse_mesh = UnitSquareMesh(10, 10)
+    hierarchy = MeshHierarchy(coarse_mesh, 1, 1)
+
+    mesh = hierarchy[0]
+
+    fig, axes = plt.subplots()
+    triplot(mesh, axes=axes)
+    axes.legend()
+
+
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    print(V.mesh())
+    print(V.ufl_element().family())
+    print(V.ufl_element().degree())
+    
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    x, y = SpatialCoordinate(mesh)
+    f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+    a = (dot(grad(v), grad(u)) + v * u) * dx
+
+    bcs = DirichletBC(V, 0, (1,2,3,4))
+
+    L = f * v * dx 
+
+    uh1 = Function(V)
+
+    solve(a == L, uh1, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+    
+    mesh = hierarchy[1]
+
+    fig, axes = plt.subplots()
+    triplot(mesh, axes=axes)
+    axes.legend()
+
+
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    x, y = SpatialCoordinate(mesh)
+    f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+    a = (dot(grad(v), grad(u)) + v * u) * dx
+
+    bcs = DirichletBC(V, 0, (1,2,3,4))
+
+    L = f * v * dx 
+
+    uh2 = Function(V)
+
+    solve(a == L, uh2, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+
+
+    fig, axes = plt.subplots()
+    triplot(mesh, axes=axes)
+    axes.legend()
+
+    uh3 = Function(V)
+
+    #solve(a == L, uh3, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+    
+    print("1")
+    prolong(uh1, uh3)
+    print("2")
+    
+    difference = assemble(uh2 - uh3)
+    fig, axes = plt.subplots()
+    collection = tripcolor(difference, axes=axes, cmap='coolwarm')
+    fig.colorbar(collection)
+
+    plt.show()
+    return errornorm(uh2, uh3)
+
+
 def MLMC_hier(coarse_size, levels, repititions, mult):
     """
     arg: coarse_size - dimension of face of Unit Square Mesh on coarsest level
@@ -342,6 +419,7 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, isEval=True):
 
     return estimate
 
+
 def MLMC_general2(levels, repititions, samples, isEval=True):
     """
     arg: coarse_fspace - FunctionSpace object on coarsest mesh
@@ -355,7 +433,6 @@ def MLMC_general2(levels, repititions, samples, isEval=True):
 
     assert len(repititions) == levels, \
     ("The levels arguement is not equal to the number of entries in the iterable")
-
     assert len(samples) == sum(repititions), \
     ("Number of samples and sum of repetitions do not match.")
 
@@ -376,8 +453,6 @@ def MLMC_general2(levels, repititions, samples, isEval=True):
             sample_i += 1  # move to next sample
         
         # This sum corresponds to the inner sum in the MLMC eqn.
-        # This and prolong() is expensive when you have many repititions
-        # interpolate happens here too to make sum/ division a function again for prolong()
         solver.calculateInnerSum()
     
     # Outer sum in MLMC eqn.
@@ -391,6 +466,7 @@ def MLMC_general2(levels, repititions, samples, isEval=True):
 
     return estimate
 
+
 def eval_soln(estimate, mult, mesh_f):
 
     uh_true = prob(mesh_f, mult)
@@ -403,6 +479,7 @@ def eval_soln(estimate, mult, mesh_f):
     plt.show()
 
     print(errornorm(estimate, uh_true))
+
 
 def general_test():
     # Levels and repititions
@@ -421,81 +498,6 @@ def general_test():
     estimate = MLMC_general2(levels, repititions, samples, True)
 
 
-def test1():
-    
-    coarse_mesh = UnitSquareMesh(10, 10)
-    hierarchy = MeshHierarchy(coarse_mesh, 1, 1)
-
-    mesh = hierarchy[0]
-
-    fig, axes = plt.subplots()
-    triplot(mesh, axes=axes)
-    axes.legend()
-
-
-    V = FunctionSpace(mesh, "Lagrange", 4)
-    print(V.mesh())
-    print(V.ufl_element().family())
-    print(V.ufl_element().degree())
-    
-    u = TrialFunction(V)
-    v = TestFunction(V)
-
-    x, y = SpatialCoordinate(mesh)
-    f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-    a = (dot(grad(v), grad(u)) + v * u) * dx
-
-    bcs = DirichletBC(V, 0, (1,2,3,4))
-
-    L = f * v * dx 
-
-    uh1 = Function(V)
-
-    solve(a == L, uh1, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
-    
-    mesh = hierarchy[1]
-
-    fig, axes = plt.subplots()
-    triplot(mesh, axes=axes)
-    axes.legend()
-
-
-    V = FunctionSpace(mesh, "Lagrange", 4)
-    u = TrialFunction(V)
-    v = TestFunction(V)
-
-    x, y = SpatialCoordinate(mesh)
-    f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-    a = (dot(grad(v), grad(u)) + v * u) * dx
-
-    bcs = DirichletBC(V, 0, (1,2,3,4))
-
-    L = f * v * dx 
-
-    uh2 = Function(V)
-
-    solve(a == L, uh2, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
-
-
-    fig, axes = plt.subplots()
-    triplot(mesh, axes=axes)
-    axes.legend()
-
-    uh3 = Function(V)
-
-    #solve(a == L, uh3, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
-    
-    print("1")
-    prolong(uh1, uh3)
-    print("2")
-    
-    difference = assemble(uh2 - uh3)
-    fig, axes = plt.subplots()
-    collection = tripcolor(difference, axes=axes, cmap='coolwarm')
-    fig.colorbar(collection)
-
-    plt.show()
-    return errornorm(uh2, uh3)
 
 
 class MLMC_Solver:
