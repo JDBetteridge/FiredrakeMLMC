@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from firedrake import *
 from randomgen import RandomGenerator, MT19937
 import time
+from ufl.corealg.traversal import unique_pre_traversal as ufl_traversal
+import ufl
 
 """
 rg = RandomGenerator(MT19937(12345))
@@ -141,6 +143,8 @@ def MLMC_failed(mesh_sizes, repititions, mult):
     
     return errornorm(u_real, interpolate(estimate, V_high))
 
+def extract_coefficients(expr):
+    return tuple(e for e in ufl_traversal(expr) if isinstance(e, ufl.Coefficient))
 
 def MLMC_hier(coarse_size, levels, repititions, mult):
     """
@@ -225,15 +229,22 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
         # This and prolong() is expensive when you have many repititions
         level_result = sum(sub_solutions)/Constant(repititions[i])
         
-        if i != (levels - 1):
+        if i != (levels - 1) or 1 == 1:
             # Interpolate to turn back into a function to allow prolong()
             level_result = interpolate(level_result, V_f)
-            temp = Function(V_high)
-            prolong(level_result, temp)
-            level_result = temp
+            #temp = Function(V_high)
+            #prolong(level_result, temp)
+            #level_result = temp
 
+        print(level_result.function_space())
         solutions.append(level_result)
     
+    print(type(solutions[0]))
+    for i in range(len(solutions)-1):
+        temp = Function(V_high)
+        prolong(solutions[i], temp)
+        solutions[i] = temp
+
     # Outer sum in MLMC eqn.
     end = time.time()
     print("Runtime: ", end - start, "s")
@@ -247,13 +258,14 @@ def MLMC_hier(coarse_size, levels, repititions, mult):
     solve(a_f == L, u_real, bcs=bcs_f, solver_parameters={'ksp_type': 'cg'})
 
     print(type(estimate), type(u_real))
+    print(extract_coefficients(estimate - u_real))
     difference = assemble(estimate - u_real)
     fig, axes = plt.subplots()
     collection = tripcolor(difference, axes=axes, cmap='coolwarm')
     fig.colorbar(collection)
 
     plt.show()
-    
+    # errornorm(u_real, interpolate(estimate, V_high))
     return errornorm(u_real, interpolate(estimate, V_high))
 
 def prob(mesh, alpha=1):
@@ -296,16 +308,26 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
     solutions = P_sums()
 
     coarse_mesh = coarse_fspace.mesh()
+    print(coarse_mesh)
     family = coarse_fspace.ufl_element().family()
     degree = coarse_fspace.ufl_element().degree()
 
     hierarchy = MeshHierarchy(coarse_mesh, levels-1, 1)
+    for i in range(len(hierarchy)):
+        print(hierarchy[i])
+    print(coarse_fspace)
     # Initialise function space at finest level
     V_high = FunctionSpace(hierarchy[-1], family, degree)
     sample_i = 0
     # Iterate through each level in hierarchy
     for i in range(len(hierarchy)):
-
+        """
+        fig, axes = plt.subplots()
+        triplot(hierarchy[i], axes=axes)
+        axes.legend()
+        plt.show()
+        print("fig")
+        """
         sub_solutions = P_sums()
         # By this point function/ function spaces have been set up
         # Sampling now begins
@@ -315,6 +337,8 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
             term = P_term(samples[sample_i], hierarchy, i, "Lagrange", 4)
             term.calculate()
             sub_solutions.add_term(term)
+            
+            #print(term._value.function_space())
             
             sample_i += 1  
         
@@ -331,7 +355,7 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
             prolong(level_result, temp)
             level_result = temp
         """
-        print("*", type(level_result._value))
+        #print("*", type(level_result._value))
         solutions.add_term(level_result)
     
     print("----")
@@ -342,31 +366,48 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, problem, isEval=Tr
     end = time.time()
     print("Runtime: ", end - start, "s")
     #estimate = sum(solutions)
+
+    eval_soln(estimate._value, Constant(10), hierarchy[-1])
+
     return estimate
 
 def eval_soln(estimate, mult, mesh_f):
     
+    fig, axes = plt.subplots()
+    triplot(mesh_f, axes=axes)
+    axes.legend()
+    plt.show()
+
+    #V = FunctionSpace(mesh_f, "Lagrange", 4)
+    #new = Function(V)
     uh_true = prob(mesh_f, mult)
     print(type(estimate), type(uh_true))
-    difference = estimate - uh_true
+    #print(extract_coefficients(estimate - uh_true))
+    # SHOULD BE AN ASSEMBLE HERE    
+    #new.assign(estimate)
+    difference = assemble(estimate - uh_true)
     fig, axes = plt.subplots()
     collection = tripcolor(difference, axes=axes, cmap='coolwarm')
     fig.colorbar(collection)
-
     plt.show()
+
+    #plt.show()
+    print(errornorm(estimate, uh_true))
 
 def general_test():
     levels = 3
-    repititions = [50, 10, 5]
+    repititions = [50, 10, 10]
     rg = RandomGenerator(MT19937(12345))
     samples = [Constant(20*rg.random_sample()) for i in range(sum(repititions))]
     
     coarse_mesh = UnitSquareMesh(10, 10)
+
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
     estimate = MLMC_general(V, levels, repititions, samples, prob, True)
-
-    fine_mesh = UnitSquareMesh(40, 40)
-    eval_soln(estimate._value, Constant(10), fine_mesh)
+    
+    #fine_mesh = UnitSquareMesh(40, 40)
+    
+    #eval_soln(estimate._value, Constant(10), fine_mesh)
 
 
 def test1():
@@ -462,10 +503,19 @@ class P_sums:
     def sum_terms(self):
         # do all prolonging at end
         self.sanitise()
+        """
         print("*", type(self._terms[0]._value))
+        lt = []
+        for i in self._terms:
+            lt.append(i._value)
+        last = sum(lt)
+        #ans = sum(self._terms)
+        print(type(last))
+        self._terms[0]._value = last
+        return self._terms[0]
+        """
         ans = sum(self._terms)
-        print(type(ans._value))
-        return sum(self._terms)
+        return ans
     
     def sanitise(self):
         fine_term = self._terms[-1]
@@ -475,6 +525,7 @@ class P_sums:
                 temp = Function(V_high)
                 prolong(term._value, temp)
                 term._value = temp
+
 
 
 
@@ -495,7 +546,7 @@ class P_term:
             return None
         else:
             self._value += other._value
-            print(type(self._value))
+            #print(type(self._value))
             return self
     
     def __radd__(self, other):
@@ -514,6 +565,7 @@ class P_term:
     
     def interpolate_sum(self):
         self._value = interpolate(self._value, self.current_space())
+        print(self._value.function_space())
     
     def fine_space(self):
         fine_mesh = self._hierarchy[-1]
@@ -549,7 +601,7 @@ class P_term:
 
         mesh_f = self._hierarchy[self._level]
         V_f = FunctionSpace(mesh_f, self._family, self._degree)
-        
+        #print(V_f)
         # Call problem fuction
         uh_f = self.problem(mesh_f)
     
