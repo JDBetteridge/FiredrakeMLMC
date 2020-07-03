@@ -49,6 +49,12 @@ def MC(mesh_size, iterations, mult):
     L = f*v*dx
     u_real = Function(V)
     solve(a == L, u_real, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+    
+    e_real = assemble(Constant(0.5) * dot(u_real, u_real) * dx)
+
+    est_f = interpolate(estimate, V)
+    e_est = assemble(Constant(0.5) * dot(est_f, est_f) * dx)
+    print(((e_est - e_real)*100)/e_est)
 
     difference = assemble(estimate-u_real)
     fig, axes = plt.subplots()
@@ -420,10 +426,9 @@ def MLMC_general(coarse_fspace, levels, repititions, samples, isEval=True):
     return estimate
 
 
-def MLMC_general2(levels, repititions, samples, isEval=True):
+def MLMC_general_field(levels, repititions, samples, isEval=True):
     """
-    arg: coarse_fspace - FunctionSpace object on coarsest mesh
-         levels - number of levels in MLMC
+    arg: levels - number of levels in MLMC
          repititions (list) - repititions at each level starting at coarsest
          samples (list) - list of all samples
          isEval (bool) - whether or not evaluation should be run on result
@@ -495,7 +500,7 @@ def general_test():
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
 
     #estimate = MLMC_general(V, levels, repititions, samples, True)
-    estimate = MLMC_general2(levels, repititions, samples, True)
+    estimate = MLMC_general_field(levels, repititions, samples, True)
 
 
 
@@ -659,9 +664,9 @@ class P_term:
     
 
 if __name__ == '__main__':
-    #print(MC(40, 50, 20))
+    print(MC(40, 50, 20))
     #print(MLMC([10,20,40], [50,10,5], 20))
     #print(test1())
     #print(MLMC_hier(10, 3, [50,10, 5], 20))
     #print(MLMC_general(10, 3, [50,10, 5], 20, [1]))
-    general_test()
+    #general_test()
