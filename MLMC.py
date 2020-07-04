@@ -60,14 +60,15 @@ def MC_scalar(mesh_size, iterations, mult):
     #axes.plot([i for i in range(iterations)], results, 'r')
     axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.show()
-
-    FILE_NAME = "1000_int.json"
+    """
+    FILE_NAME = "10000_int.json"
     with open(FILE_NAME, "w") as handle:
         json.dump(estimate, handle)
     
-    FILE_NAME = "1000_list.json"
+    FILE_NAME = "10000_list.json"
     with open(FILE_NAME, "w") as handle:
         json.dump(solutions, handle)
+    """
 
     return results
 
@@ -84,12 +85,13 @@ def prob(mesh, alpha=1):
 
     bcs = DirichletBC(V, 0, (1,2,3,4))
 
-    f = alpha*base_f
+    f = 10*base_f
     L = f * v * dx
 
     uh = Function(V)
-
+    start = time.time()
     solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+    print("Time to solve: ", time.time()- start)
     energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
     return energy
 
@@ -100,9 +102,11 @@ def samp():
 
 def MLMC_general_scalar(problem, sampler, starting_mesh, levels, repititions, isEval=True):
     """
-    arg: levels - number of levels in MLMC
+    arg: problem (func) - function of problem which takes 2 arguments: mesh and 
+                          and a random sample, returns scalar solution
+         sampler (func) - no argument function which returns a random sample
+         levels (int) - number of levels in MLMC
          repititions (list) - repititions at each level starting at coarsest
-         samples (list) - list of all samples
          isEval (bool) - whether or not evaluation should be run on result
     output: Estimate of value
     """
@@ -121,8 +125,9 @@ def MLMC_general_scalar(problem, sampler, starting_mesh, levels, repititions, is
         # Sampling now begins
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
-            
+            s = time.time()
             solver.addTerm(i)
+            print("addTerm time: ", time.time() - s)
 
         
         # This sum corresponds to the inner sum in the MLMC eqn.
@@ -157,7 +162,7 @@ def eval_soln(estimate, mult, mesh_f):
 def general_test():
     # Levels and repititions
     levels = 3
-    repititions = [50, 10, 5]
+    repititions = [500, 100, 10]
     
     # Creating base coarse mesh and function space
     coarse_mesh = UnitSquareMesh(10, 10)
@@ -181,8 +186,12 @@ class MLMC_Solver:
 
     def addTerm(self, level):
         term = P_term(self._hierarchy, self.problem, self.sampler, level)
+        s1 = time.time()
         term.calculate()
+        print("Time to calculate", time.time()-s1)
+        s2 = time.time()
         self._sub_solutions.append(term)
+        print("Time to append", time.time()-s2)
     
     def calculateInnerSum(self):
         level_result = sum(self._sub_solutions)/len(self._sub_solutions)
@@ -203,14 +212,22 @@ class MLMC_Solver:
         
         with open("1000_int.json") as handle:
             e_1000 = json.load(handle)
+        
+        with open("10000_int.json") as handle:
+            e_10000 = json.load(handle)
 
         d_10 = self._result - e_10
         d_100 = self._result - e_100
         d_1000 = self._result - e_1000
+        d_10000 = self._result - e_10000
 
         print("% difference from 10 sample MC: ",(d_10*100)/self._result)
         print("% difference from 100 sample MC: ",(d_100*100)/self._result)
         print("% difference from 1000 sample MC: ",(d_1000*100)/self._result)
+        print("% difference from 10000 sample MC: ",(d_10000*100)/self._result)
+
+        convergence_tests(self._result)
+
 
 
 class P_term:
@@ -225,7 +242,7 @@ class P_term:
 
     
     def __add__(self, other):
-        assert self._value != None and other._value != None, \
+        assert self._valç!= None and other._value != None, \
         ("Both terms in sum need to have been calculated before they can be summed")
 
         self._value += other._value
@@ -253,7 +270,9 @@ class P_term:
         mesh_f = self._hierarchy[self._level]
         # Call problem fuction
         sample = self.sampler()
+        s2 = time.time()
         e_f = self.problem(mesh_f, sample)
+        print("Time on problem call: ", time.time() - s2)
     
         if self._level-1 >= 0:  
             mesh_c = self._hierarchy[self._level-1]
@@ -262,8 +281,24 @@ class P_term:
             self._value =  e_f - e_c
         else:
             self._value = e_f
+            self._hierarchy = None
         return 0
 
+def convergence_tests(param = None):
+    with open("10000_list.json") as handle:
+            results = json.load(handle)
+    
+    res2 = [sum(results[:i])/(i+1) for i in range(len(results))]
+    fig, axes = plt.subplots()
+    axes.plot([i for i in range(10000)], res2, 'r')
+    if param != None:
+        plt.axhline(y=param, color='b')
+    #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
+    plt.show()
+
 if __name__ == '__main__':
-    #print(MC_scalar(40, 1000, 20))
+    #print(MC_scalar(10, 500, 20))
     general_test()
+    #convergence_tests()
+
+    
