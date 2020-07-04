@@ -84,8 +84,7 @@ def prob(mesh, alpha=1):
     a = (dot(grad(v), grad(u)) + v * u) * dx
 
     bcs = DirichletBC(V, 0, (1,2,3,4))
-
-    f = 10*base_f
+    f = Constant(alpha)*base_f
     L = f * v * dx
 
     uh = Function(V)
@@ -162,9 +161,9 @@ def eval_soln(estimate, mult, mesh_f):
 def general_test():
     # Levels and repititions
     levels = 3
-    repititions = [500, 100, 10]
+    repititions = [1000, 100, 10]
     
-    # Creating base coarse mesh and function space
+    # Creating base coarse mesh and function spaceokay 
     coarse_mesh = UnitSquareMesh(10, 10)
 
     #estimate = MLMC_general(V, levels, repititions, samples, True)
@@ -242,7 +241,7 @@ class P_term:
 
     
     def __add__(self, other):
-        assert self._valç!= None and other._value != None, \
+        assert self._value!= None and other._value != None, \
         ("Both terms in sum need to have been calculated before they can be summed")
 
         self._value += other._value
