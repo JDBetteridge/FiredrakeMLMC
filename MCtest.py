@@ -507,7 +507,9 @@ def general_test():
 
 class MLMC_Solver:
     def __init__(self, levels):
+        s = time.time()
         self._hierarchy = MeshHierarchy(UnitSquareMesh(10, 10), levels-1, 1)
+        print("hierarchy time: ", time.time() - s)
         self._family = "Lagrange"
         self._degree = 4
 
@@ -664,9 +666,9 @@ class P_term:
     
 
 if __name__ == '__main__':
-    print(MC(40, 50, 20))
+    #print(MC(40, 50, 20))
     #print(MLMC([10,20,40], [50,10,5], 20))
     #print(test1())
     #print(MLMC_hier(10, 3, [50,10, 5], 20))
     #print(MLMC_general(10, 3, [50,10, 5], 20, [1]))
-    #general_test()
+    general_test()

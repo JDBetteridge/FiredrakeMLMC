@@ -90,7 +90,7 @@ def prob(mesh, alpha=1):
     uh = Function(V)
     start = time.time()
     solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
-    print("Time to solve: ", time.time()- start)
+    #print("Time to solve: ", time.time()- start)
     energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
     return energy
 
@@ -120,20 +120,21 @@ def MLMC_general_scalar(problem, sampler, starting_mesh, levels, repititions, is
     for i in range(levels):
         print("LEVEL {} - {} Samples".format(i+1, repititions[i]))
 
+        solver.newLevel(i)
         # By this point function/ function spaces have been set up
         # Sampling now begins
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
             s = time.time()
             solver.addTerm(i)
-            print("addTerm time: ", time.time() - s)
+            #print("addTerm time: ", time.time() - s)
 
         
         # This sum corresponds to the inner sum in the MLMC eqn.
-        solver.calculateInnerSum()
+        solver.averageLevel(i)
     
     # Outer sum in MLMC eqn.
-    estimate = solver.calculateOuterSum()
+    estimate = solver.sumAllLevels()
     
     end = time.time()
     print("Runtime: ", end - start, "s")
@@ -173,32 +174,29 @@ def general_test():
 
 
 class MLMC_Solver:
-    def __init__(self, problem, starting_mesh, sampler, levels):
+    def __init__(self, problem, coarse_mesh, sampler, levels):
         self.problem = problem
-        self._hierarchy = MeshHierarchy(starting_mesh, levels-1, 1)
+        self._coarse_mesh = coarse_mesh
         self.sampler = sampler
 
         self._solutions = []
-        self._sub_solutions = []
+        self._level_list = [False for i in range(levels)]
 
         self._result = None
 
-    def addTerm(self, level):
-        term = P_term(self._hierarchy, self.problem, self.sampler, level)
-        s1 = time.time()
-        term.calculate()
-        print("Time to calculate", time.time()-s1)
-        s2 = time.time()
-        self._sub_solutions.append(term)
-        print("Time to append", time.time()-s2)
-    
-    def calculateInnerSum(self):
-        level_result = sum(self._sub_solutions)/len(self._sub_solutions)
-        self._solutions.append(level_result)
-        self._sub_solutions = []
+    def newLevel(self, level):
 
-    def calculateOuterSum(self):
-        self._result = sum(self._solutions).get_value()
+        self._level_list[level] = P_level(self._coarse_mesh, self.problem, self.sampler, level)
+
+    def addTerm(self, level):
+        self._level_list[level].calculate_term()
+    
+    def averageLevel(self, level):
+        self._level_list[level] = self._level_list[level].get_average()
+
+    def sumAllLevels(self):
+        assert all(isinstance(x, float) for x in self._level_list)
+        self._result = sum(self._level_list)
         return self._result
     
     def eval_result(self):
@@ -229,14 +227,15 @@ class MLMC_Solver:
 
 
 
-class P_term:
+class P_level:
     
-    def __init__(self, hierarchy, problem, sampler, level):
+    def __init__(self, coarse_mesh, problem, sampler, level):
         self.problem = problem
         self._level = level
-        self._hierarchy = hierarchy
+        self._hierarchy = MeshHierarchy(coarse_mesh, level, 1)
         self.sampler = sampler
 
+        self._sample_counter = 0
         self._value = None
 
     
@@ -262,25 +261,31 @@ class P_term:
     
     def get_value(self):
         return self._value
+    
+    def get_average(self):
+        self._hierarchy = None # For memory conservation
+        return self._value/self._sample_counter
+        
 
-    def calculate(self):
-        assert self._value == None, ("Error: Already calculated")
-
+    def calculate_term(self):
+        if self._value == None:
+            self._value = 0
+        
         mesh_f = self._hierarchy[self._level]
         # Call problem fuction
         sample = self.sampler()
         s2 = time.time()
         e_f = self.problem(mesh_f, sample)
-        print("Time on problem call: ", time.time() - s2)
+        #print("Time on problem call: ", time.time() - s2)
     
         if self._level-1 >= 0:  
             mesh_c = self._hierarchy[self._level-1]
             e_c = self.problem(mesh_c, sample)
-                
-            self._value =  e_f - e_c
+
+            self._value +=  e_f - e_c
         else:
-            self._value = e_f
-            self._hierarchy = None
+            self._value += e_f
+        self._sample_counter += 1
         return 0
 
 def convergence_tests(param = None):
