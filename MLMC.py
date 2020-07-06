@@ -184,13 +184,14 @@ def eval_soln(estimate, mult, mesh_f):
 def general_test():
     # Levels and repititions
     levels = 3
-    repititions = [1000, 100, 10]
+    repititions = [1000, 200, 10]
     
     # Creating base coarse mesh and function spaceokay 
     coarse_mesh = UnitSquareMesh(10, 10)
+    V = FunctionSpace(coarse_mesh, "Lagrange", 4)
 
     #estimate = MLMC_general(V, levels, repititions, samples, True)
-    estimate = MLMC_general_scalar(prob, samp, coarse_mesh, levels, repititions, True)
+    estimate = MLMC_general_scalar(newProblem, samp, V, levels, repititions, True)
 
 
 
@@ -198,7 +199,7 @@ def general_test():
 class MLMC_Solver:
     def __init__(self, problem, coarse_mesh, sampler, levels):
         self.problem = problem
-        self._coarse_mesh = coarse_mesh
+        self._coarse_V = coarse_mesh
         self.sampler = sampler
 
         # List with entry for each level
@@ -211,7 +212,7 @@ class MLMC_Solver:
 
     def newLevel(self, level):
 
-        self._level_list[level] = P_level(self._coarse_mesh, self.problem, self.sampler, level)
+        self._level_list[level] = P_level(self._coarse_V, self.problem, self.sampler, level)
 
     def addTerm(self, level):
         self._level_list[level].calculate_term()
@@ -254,44 +255,29 @@ class MLMC_Solver:
 
 class P_level:
     
-    def __init__(self, coarse_mesh, problem, sampler, level):
+    def __init__(self, coarse_V, problem, sampler, level):
         self.problem = problem
         self._level = level
-        self._hierarchy = MeshHierarchy(coarse_mesh, level, 1)
+        self._hierarchy = MeshHierarchy(coarse_V.mesh(), level, 1)
         self.sampler = sampler
 
         self._sample_counter = 0 # Needed for divison in get_average()
         self._value = None # Stores result
-        self._terms_f = None
-        self._terms_c = None
-        self._sample = 0
+        self._sample = Constant(0)
 
-    # UNUSED
-    def __add__(self, other):
-        assert self._value!= None and other._value != None, \
-        ("Both terms in sum need to have been calculated before they can be summed")
-
-        self._value += other._value
-        return self
-    
-    # UNUSED
-    def __radd__(self, other):
-        if other == 0:
-            return self
-        else:
-            return self.__add__(other)
-    
-    # UNUSED
-    def __truediv__(self, other):
-        assert self._value != None, \
-        ("P_level object needs to be calculated before division can be carried out")
-
-        self._value = self._value / other
-        return self
-    
-    # UNUSED
-    def get_value(self):
-        return self._value
+        family = coarse_V.ufl_element().family()
+        degree = coarse_V.ufl_element().degree()
+        
+        # Set up fine variational problem with sample which varies
+        V_f = FunctionSpace(self._hierarchy[level], family, degree)
+        self._uh_f = Function(V_f)
+        self._vs_f = self.problem(self._hierarchy[level], self._sample, self._uh_f)
+        
+        # Set up coarse variational problem with sample which varies
+        if self._level-1 >= 0:
+            V_c = FunctionSpace(self._hierarchy[level-1], family, degree)
+            self._uh_c = Function(V_c)
+            self._vs_c = self.problem(self._hierarchy[level-1], self._sample, self._uh_c) 
     
     def get_average(self):
         self._hierarchy = None # For memory conservation clear hierarchy
@@ -306,19 +292,15 @@ class P_level:
         if self._value == None:
             self._value = 0
 
-            self._terms_f = generateInvarient(self._hierarchy[self._level])
-            if self._level-1 >= 0:
-                self._terms_c = generateInvarient(self._hierarchy[self._level-1])
-        
-        mesh_f = self._hierarchy[self._level]
-
         # Generate sample and call problem fuction on sample
-        sample = self.sampler()
-        e_f = generateProblem(self._terms_f, mesh_f, sample)
-    
+        self._sample.assign(Constant(self.sampler()))
+        self._vs_f.solve()
+        # This part needs to be abstracted away. Perhaps a second input function?
+        e_f = assemble(Constant(0.5) * dot(self._uh_f, self._uh_f) * dx)
+
         if self._level-1 >= 0:  
-            mesh_c = self._hierarchy[self._level-1]
-            e_c = generateProblem(self._terms_c, mesh_c, sample)
+            self._vs_c.solve()
+            e_c = assemble(Constant(0.5) * dot(self._uh_c, self._uh_c) * dx)
 
             self._value +=  e_f - e_c
         else:
@@ -326,31 +308,22 @@ class P_level:
         self._sample_counter += 1
         return 0
 
-def generateInvarient(mesh):
-    output = [False for i in range(3)]
-    
+def newProblem(mesh, alpha, uh):
     V = FunctionSpace(mesh, "Lagrange", 4)
     u = TrialFunction(V)
     v = TestFunction(V)
 
-    
-    a = (dot(grad(v), grad(u)) + v * u) * dx
-    output[0] = a
-    output[1] = DirichletBC(V, 0, (1,2,3,4))
     x, y = SpatialCoordinate(mesh)
     base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-    output[2] = base_f * v * dx
-    return output
+    a = (dot(grad(v), grad(u)) + v * u) * dx
 
-def generateProblem(terms, mesh, sample):
-    V = FunctionSpace(mesh, "Lagrange", 4)
-    uh = Function(V)
-    L = Constant(sample) * terms[2]
-    vp = LinearVariationalProblem(terms[0], L, uh, bcs=terms[1])
-    vs = LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
-    vs.solve()
-    energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
-    return energy
+    bcs = DirichletBC(V, 0, (1,2,3,4))
+    f = alpha*base_f
+    L = f * v * dx
+    vp = LinearVariationalProblem(a, L, uh, bcs=bcs)
+
+    return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
+
 
 
 def convergence_tests(param = None):
