@@ -88,9 +88,9 @@ def prob(mesh, alpha=1):
     L = f * v * dx
 
     uh = Function(V)
-    start = time.time()
+
     solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
-    #print("Time to solve: ", time.time()- start)
+
     energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
     return energy
 
@@ -112,7 +112,7 @@ def MLMC_general_scalar(problem, sampler, starting_mesh, levels, repititions, is
     start = time.time()
 
     assert len(repititions) == levels, \
-    ("The levels arguement is not equal to the number of entries in the iterable")
+    ("The levels arguement is not equal to the number of entries in repititions")
 
     solver = MLMC_Solver(problem, starting_mesh, sampler, levels)
 
@@ -120,17 +120,15 @@ def MLMC_general_scalar(problem, sampler, starting_mesh, levels, repititions, is
     for i in range(levels):
         print("LEVEL {} - {} Samples".format(i+1, repititions[i]))
 
-        solver.newLevel(i)
-        # By this point function/ function spaces have been set up
+        solver.newLevel(i) # Create P_level obj in soln list
+        
         # Sampling now begins
         for j in range(repititions[i]):
             print("Sample {} of {}".format(j+1, repititions[i]))
-            s = time.time()
-            solver.addTerm(i)
-            #print("addTerm time: ", time.time() - s)
 
-        
-        # This sum corresponds to the inner sum in the MLMC eqn.
+            solver.addTerm(i) # Calculate result from sample
+
+        # This corresponds to the inner sum in the MLMC eqn.
         solver.averageLevel(i)
     
     # Outer sum in MLMC eqn.
@@ -179,7 +177,10 @@ class MLMC_Solver:
         self._coarse_mesh = coarse_mesh
         self.sampler = sampler
 
-        self._solutions = []
+        # List with entry for each level
+        # When entry == False level calculation has not begun
+        # When type(entry) == P_level obj calculation in progress (summing terms)
+        # When type(entry) == float obj calculation on that level completed
         self._level_list = [False for i in range(levels)]
 
         self._result = None
@@ -235,10 +236,10 @@ class P_level:
         self._hierarchy = MeshHierarchy(coarse_mesh, level, 1)
         self.sampler = sampler
 
-        self._sample_counter = 0
-        self._value = None
+        self._sample_counter = 0 # Needed for divison in get_average()
+        self._value = None # Stores result
 
-    
+    # UNUSED
     def __add__(self, other):
         assert self._value!= None and other._value != None, \
         ("Both terms in sum need to have been calculated before they can be summed")
@@ -246,37 +247,42 @@ class P_level:
         self._value += other._value
         return self
     
+    # UNUSED
     def __radd__(self, other):
         if other == 0:
             return self
         else:
             return self.__add__(other)
     
+    # UNUSED
     def __truediv__(self, other):
         assert self._value != None, \
-        ("P_term object needs to be calculated before division can be carried out")
+        ("P_level object needs to be calculated before division can be carried out")
 
         self._value = self._value / other
         return self
     
+    # UNUSED
     def get_value(self):
         return self._value
     
     def get_average(self):
-        self._hierarchy = None # For memory conservation
+        self._hierarchy = None # For memory conservation clear hierarchy
         return self._value/self._sample_counter
         
 
     def calculate_term(self):
+        """
+        Calculates result from new sample and adds it to _value. This is 
+        equivalent to inner sum in MLMC equation.
+        """
         if self._value == None:
             self._value = 0
         
         mesh_f = self._hierarchy[self._level]
-        # Call problem fuction
+        # Generate sample and call problem fuction on sample
         sample = self.sampler()
-        s2 = time.time()
         e_f = self.problem(mesh_f, sample)
-        #print("Time on problem call: ", time.time() - s2)
     
         if self._level-1 >= 0:  
             mesh_c = self._hierarchy[self._level-1]
@@ -289,6 +295,9 @@ class P_level:
         return 0
 
 def convergence_tests(param = None):
+    """
+    Function which compares result to 10,000 sample MC 
+    """
     with open("10000_list.json") as handle:
             results = json.load(handle)
     
