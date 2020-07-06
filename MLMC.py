@@ -94,6 +94,30 @@ def prob(mesh, alpha=1):
     energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
     return energy
 
+def prob2(mesh, alpha=1, setup=True):
+    output = [False for i in range(4)]
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    
+    a = (dot(grad(v), grad(u)) + v * u) * dx
+    output[0] = a
+    output[2] = DirichletBC(V, 0, (1,2,3,4))
+    output[3] = Function(V)
+
+  
+    x, y = SpatialCoordinate(mesh)
+    base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+    f = Constant(alpha)*base_f
+    L = f * v * dx
+    output[1] = L
+
+    
+
+    solve(a == L, uh, bcs=bcs, solver_parameters={'ksp_type': 'cg'})
+
+
 rg = RandomGenerator(MT19937(12345))
 def samp():
     return 20*rg.random_sample()
@@ -238,6 +262,9 @@ class P_level:
 
         self._sample_counter = 0 # Needed for divison in get_average()
         self._value = None # Stores result
+        self._terms_f = None
+        self._terms_c = None
+        self._sample = 0
 
     # UNUSED
     def __add__(self, other):
@@ -278,21 +305,53 @@ class P_level:
         """
         if self._value == None:
             self._value = 0
+
+            self._terms_f = generateInvarient(self._hierarchy[self._level])
+            if self._level-1 >= 0:
+                self._terms_c = generateInvarient(self._hierarchy[self._level-1])
         
         mesh_f = self._hierarchy[self._level]
+
         # Generate sample and call problem fuction on sample
         sample = self.sampler()
-        e_f = self.problem(mesh_f, sample)
+        e_f = generateProblem(self._terms_f, mesh_f, sample)
     
         if self._level-1 >= 0:  
             mesh_c = self._hierarchy[self._level-1]
-            e_c = self.problem(mesh_c, sample)
+            e_c = generateProblem(self._terms_c, mesh_c, sample)
 
             self._value +=  e_f - e_c
         else:
             self._value += e_f
         self._sample_counter += 1
         return 0
+
+def generateInvarient(mesh):
+    output = [False for i in range(3)]
+    
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    
+    a = (dot(grad(v), grad(u)) + v * u) * dx
+    output[0] = a
+    output[1] = DirichletBC(V, 0, (1,2,3,4))
+    x, y = SpatialCoordinate(mesh)
+    base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+    output[2] = base_f * v * dx
+    return output
+
+def generateProblem(terms, mesh, sample):
+    V = FunctionSpace(mesh, "Lagrange", 4)
+    uh = Function(V)
+    L = Constant(sample) * terms[2]
+    vp = LinearVariationalProblem(terms[0], L, uh, bcs=terms[1])
+    vs = LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
+    vs.solve()
+    energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
+    return energy
+
 
 def convergence_tests(param = None):
     """
