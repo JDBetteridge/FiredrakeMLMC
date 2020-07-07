@@ -16,6 +16,8 @@ def MC_scalar(mesh_size, iterations, mult):
 
     rg = RandomGenerator(MT19937(12345))
     solutions = []
+    field_solutions = []
+    results = []
 
     for i in range(iterations):
         print("Sample {} of {}".format(i+1, iterations))
@@ -23,18 +25,26 @@ def MC_scalar(mesh_size, iterations, mult):
 
         vp.solve()
         energy = assemble(Constant(0.5) * dot(uh, uh) * dx)
-        
+        print(energy)
+        field_solutions.append(uh)
         solutions.append(energy)
         estimate = sum(solutions)/(i+1)
+        results.append(estimate)
    
     end = time.time()
     print("Runtime: ", end - start, "s") 
 
+    field_estimate = sum(field_solutions)/Constant(iterations)
+    est_f = interpolate(field_estimate, V)
+    e_est = assemble(Constant(0.5) * dot(est_f, est_f) * dx)
+    print(e_est)
+    convergence_tests(e_est)
+
     fig, axes = plt.subplots()
-    #axes.plot([i for i in range(iterations)], results, 'r')
-    axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
+    axes.plot([i for i in range(iterations)], results, 'r')
+    #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.show()
-    
+    """
     FILE_NAME = "20000_int.json"
     with open(FILE_NAME, "w") as handle:
         json.dump(estimate, handle)
@@ -42,7 +52,7 @@ def MC_scalar(mesh_size, iterations, mult):
     FILE_NAME = "20000_list.json"
     with open(FILE_NAME, "w") as handle:
         json.dump(solutions, handle)
-    
+    """
 
     return 0
 
@@ -186,7 +196,6 @@ class MLMC_Solver:
         self._result = None
 
     def newLevel(self, level):
-
         self._level_list[level] = P_level(self._coarse_V, self.pde_problem, self.scalar_problem, self.sampler, level)
 
     def addTerm(self, level):
@@ -298,6 +307,50 @@ class P_level:
 
 # ============================================================================ #
 
+
+class problemClass:
+    """
+    Needs to take an integer initialisation argument to define the level (0 - L)
+    Needs to have a .solve() method which takes a sample as an argument and returns
+    a scalar solution
+    """
+    def __init__(self, level):
+        
+        self._V = self.level_maker()
+        self._sample = Constant(0)
+        self._uh = Function(self._V)
+        self._vs = self.initialise_problem()
+    
+    def initialise_problem(self):
+        u = TrialFunction(self._V)
+        v = TestFunction(self._V)
+
+        x, y = SpatialCoordinate(self._V.mesh())
+        base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
+        a = (dot(grad(v), grad(u)) + v * u) * dx
+
+        bcs = DirichletBC(self._V, 0, (1,2,3,4))
+        f = self._sample*base_f
+        L = f * v * dx
+        vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
+        return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
+    
+    def solve(self, sample):
+        self._sample.assign(Constant(sample))
+        self._vs.solve()
+        return assemble(Constant(0.5) * dot(self._uh, self._uh) * dx)
+    
+    def level_maker(self, level):
+        coarse_mesh = UnitSquareMesh(10, 10)
+        return FunctionSpace(coarse_mesh, "Lagrange", 4)
+    
+    
+
+
+
+
+
+    
 def newProblem(mesh, alpha, uh):
     V = FunctionSpace(mesh, "Lagrange", 4)
     u = TrialFunction(V)
@@ -324,7 +377,8 @@ def convergence_tests(param = None):
     with open("20000_list.json") as handle:
             results = json.load(handle)
     
-    res2 = [sum(results[:i])/(i+1) for i in range(len(results))]
+    res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
+    print(res2[0], results[0])
     fig, axes = plt.subplots()
     axes.plot([i for i in range(20000)], res2, 'r')
     if param != None:
@@ -333,8 +387,8 @@ def convergence_tests(param = None):
     plt.show()
 
 if __name__ == '__main__':
-    #print(MC_scalar(40, 20000, 20))
-    general_test()
-    #convergence_tests()
+    #print(MC_scalar(40, 100, 20))
+    #general_test()
+    convergence_tests()
 
     
