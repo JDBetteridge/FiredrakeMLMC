@@ -54,5 +54,6 @@ def general_test():
     repititions = [1000, 200, 10]
     estimate = MLMC_general_scalar(problemClass, samp, levels, repititions, True)
 
+
 if __name__ == '__main__':
     general_test()
