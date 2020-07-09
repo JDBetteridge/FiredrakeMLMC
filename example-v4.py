@@ -4,8 +4,9 @@ from randomgen import RandomGenerator, MT19937
 from MLMCv4 import MLMC_general_scalar, MLMC_Solver, P_level, convergence_tests
 
 rg = RandomGenerator(MT19937(12345))
-def samp():
-    return 20*rg.random_sample()
+def samp(level):
+    ans = 20*rg.random_sample()
+    return ans, ans
 
 class problemClass:
     """
@@ -49,10 +50,10 @@ class problemClass:
 
 
 def general_test():
-    # Levels and repititions
+    # Levels and repetitions
     levels = 3
-    repititions = [1000, 200, 10]
-    estimate = MLMC_general_scalar(problemClass, samp, levels, repititions, True)
+    repetitions = [1000, 200, 10]
+    estimate = MLMC_general_scalar(problemClass, samp, levels, repetitions, True)
 
 
 if __name__ == '__main__':

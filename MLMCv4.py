@@ -4,32 +4,36 @@ import json
 
 
 
-def MLMC_general_scalar(problem_class, sampler, levels, repititions, isEval=True):
+def MLMC_general_scalar(problem_class, sampler, levels, repetitions, isEval=True):
     """
-    arg: problem (func) - function of problem which takes 2 arguments: mesh and 
-                          and a random sample, returns scalar solution
-         sampler (func) - no argument function which returns a random sample
+    arg: problem_class (func) - class initialised with one argument - the level
+         as an integer. It must also have a .solve() method which takes one 
+         argument - a sample - and returns  the solution to the problem using
+         that sample
+         sampler (func) - single argument function in which the integer level
+         is entered and a tuple is returned giving a sample in the correct form 
+         for both the coarse and fine level (sample_coarse, sample_fine)
          levels (int) - number of levels in MLMC
-         repititions (list) - repititions at each level starting at coarsest
+         repetitions (list) - repetitions at each level starting at coarsest
          isEval (bool) - whether or not evaluation should be run on result
     output: Estimate of value
     """
     start = time.time()
 
-    assert len(repititions) == levels, \
-    ("The levels arguement is not equal to the number of entries in repititions")
+    assert len(repetitions) == levels, \
+    ("The levels arguement is not equal to the number of entries in repetitions")
 
     solver = MLMC_Solver(problem_class, sampler, levels)
 
     # Iterate through each level in hierarchy
     for i in range(levels):
-        print("LEVEL {} - {} Samples".format(i+1, repititions[i]))
+        print("LEVEL {} - {} Samples".format(i+1, repetitions[i]))
 
         solver.newLevel(i) # Create P_level obj in soln list
         
         # Sampling now begins
-        for j in range(repititions[i]):
-            print("Sample {} of {}".format(j+1, repititions[i]))
+        for j in range(repetitions[i]):
+            print("Sample {} of {}".format(j+1, repetitions[i]))
 
             solver.addTerm(i) # Calculate result from sample
 
@@ -138,11 +142,11 @@ class P_level:
             self._value = 0
 
         # Generate sample and solve problems with sample
-        sample = self.sampler()
-        e_f = self.problem_f.solve(sample)
+        sample_c, sample_f = self.sampler(self._level)
+        e_f = self.problem_f.solve(sample_f)
 
         if self._level >= 1:  
-            e_c = self.problem_c.solve(sample)
+            e_c = self.problem_c.solve(sample_c)
             self._value +=  e_f - e_c
         else:
             self._value += e_f

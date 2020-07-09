@@ -107,32 +107,32 @@ def samp():
     return 20*rg.random_sample()
 
 
-def MLMC_general_scalar(pde_problem, scalar_problem, sampler, starting_mesh, levels, repititions, isEval=True):
+def MLMC_general_scalar(pde_problem, scalar_problem, sampler, starting_mesh, levels, repetitions, isEval=True):
     """
     arg: problem (func) - function of problem which takes 2 arguments: mesh and 
                           and a random sample, returns scalar solution
          sampler (func) - no argument function which returns a random sample
          levels (int) - number of levels in MLMC
-         repititions (list) - repititions at each level starting at coarsest
+         repetitions (list) - repetitions at each level starting at coarsest
          isEval (bool) - whether or not evaluation should be run on result
     output: Estimate of value
     """
     start = time.time()
 
-    assert len(repititions) == levels, \
-    ("The levels arguement is not equal to the number of entries in repititions")
+    assert len(repetitions) == levels, \
+    ("The levels arguement is not equal to the number of entries in repetitions")
 
     solver = MLMC_Solver(pde_problem, starting_mesh, sampler, levels, scalar_problem)
 
     # Iterate through each level in hierarchy
     for i in range(levels):
-        print("LEVEL {} - {} Samples".format(i+1, repititions[i]))
+        print("LEVEL {} - {} Samples".format(i+1, repetitions[i]))
 
         solver.newLevel(i) # Create P_level obj in soln list
         
         # Sampling now begins
-        for j in range(repititions[i]):
-            print("Sample {} of {}".format(j+1, repititions[i]))
+        for j in range(repetitions[i]):
+            print("Sample {} of {}".format(j+1, repetitions[i]))
 
             solver.addTerm(i) # Calculate result from sample
 
@@ -166,16 +166,16 @@ def eval_soln(estimate, mult, mesh_f):
 
 
 def general_test():
-    # Levels and repititions
+    # Levels and repetitions
     levels = 3
-    repititions = [1000, 200, 10]
+    repetitions = [1000, 200, 10]
     
     # Creating base coarse mesh and function spaceokay 
     coarse_mesh = UnitSquareMesh(10, 10)
     V = FunctionSpace(coarse_mesh, "Lagrange", 4)
 
-    #estimate = MLMC_general(V, levels, repititions, samples, True)
-    estimate = MLMC_general_scalar(newProblem, scalarProblem, samp, V, levels, repititions, True)
+    #estimate = MLMC_general(V, levels, repetitions, samples, True)
+    estimate = MLMC_general_scalar(newProblem, scalarProblem, samp, V, levels, repetitions, True)
 
 
 
@@ -384,6 +384,8 @@ def convergence_tests(param = None):
     if param != None:
         plt.axhline(y=param, color='b')
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
+    plt.xlabel("Number of Samples")
+    plt.ylabel("Estimated Value")
     plt.show()
 
 if __name__ == '__main__':
