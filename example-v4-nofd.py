@@ -14,7 +14,7 @@ class binProblem:
         return ans
 
 rg = RandomGenerator(MT19937(12345))
-def samp():
+def samp(level):
     ans = [rg.random_sample()*1000 for i in range(10)]
     return ans, ans
 

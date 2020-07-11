@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import time
 import json
+import logging
 
 
 
@@ -18,6 +19,7 @@ def MLMC_general_scalar(problem_class, sampler, levels, repetitions, isEval=True
          isEval (bool) - whether or not evaluation should be run on result
     output: Estimate of value
     """
+    logging.basicConfig(format='%(message)s', level=logging.INFO)
     start = time.time()
 
     assert len(repetitions) == levels, \
@@ -27,13 +29,13 @@ def MLMC_general_scalar(problem_class, sampler, levels, repetitions, isEval=True
 
     # Iterate through each level in hierarchy
     for i in range(levels):
-        print("LEVEL {} - {} Samples".format(i+1, repetitions[i]))
+        logging.info("LEVEL {} - {} Samples".format(i+1, repetitions[i]))
 
         solver.newLevel(i) # Create P_level obj in soln list
         
         # Sampling now begins
         for j in range(repetitions[i]):
-            print("Sample {} of {}".format(j+1, repetitions[i]))
+            logging.info("Sample {} of {}".format(j+1, repetitions[i]))
 
             solver.addTerm(i) # Calculate result from sample
 
@@ -44,7 +46,7 @@ def MLMC_general_scalar(problem_class, sampler, levels, repetitions, isEval=True
     estimate = solver.sumAllLevels()
     
     end = time.time()
-    print("Runtime: ", end - start, "s")
+    logging.info("Runtime: ", end - start, "s")
 
     if isEval:
         solver.eval_result()
