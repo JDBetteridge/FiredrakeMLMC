@@ -4,6 +4,7 @@ from randomgen import RandomGenerator, MT19937
 from MLMCv4 import MLMC_general_scalar, MLMC_Solver, P_level, convergence_tests
 
 rg = RandomGenerator(MT19937(12345))
+
 def samp(level):
     ans = 20*rg.random_sample()
     return ans, ans

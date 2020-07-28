@@ -46,7 +46,7 @@ def MLMC_general_scalar(problem_class, sampler, levels, repetitions, isEval=True
     estimate = solver.sumAllLevels()
     
     end = time.time()
-    logging.info("Runtime: ", end - start, "s")
+    logging.info("Runtime: {}s".format(end - start))
 
     if isEval:
         solver.eval_result()

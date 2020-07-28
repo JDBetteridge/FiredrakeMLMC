@@ -671,4 +671,4 @@ if __name__ == '__main__':
     #print(test1())
     #print(MLMC_hier(10, 3, [50,10, 5], 20))
     #print(MLMC_general(10, 3, [50,10, 5], 20, [1]))
-    general_test()
+    #general_test()
