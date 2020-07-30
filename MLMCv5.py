@@ -2,20 +2,14 @@ import time
 import logging
 
 class MLMC_Solver:
-    """
-    arg: problem_class (func) - class initialised with one argument - the level
-         as an integer. It must also have a .solve() method which takes one 
-         argument - a sample - and returns  the solution to the problem using
-         that sample
-         sampler (func) - single argument function in which the integer level
-         is entered and a tuple is returned giving a sample in the correct form 
-         for both the coarse and fine level (sample_coarse, sample_fine)
-         levels (int) - number of levels in MLMC
-         repetitions (list) - repetitions at each level starting at coarsest
-         isEval (bool) - whether or not evaluation should be run on result
-    output: Estimate of value
-    """
+
     def __init__ (self, problem, levels, repetitions):
+        """
+        arg: 
+            problem (class) - MLMC_Solver object containing problem.
+            levels (int) - number of levels in MLMC
+            repetitions (list) - repetitions at each level starting at coarsest
+        """
         self.MLMCproblem = problem
         self.levels = levels
         self.repetitions = repetitions
@@ -57,6 +51,23 @@ class MLMC_Solver:
 
 class MLMC_Problem:
     def __init__(self, problem_class, sampler, lvl_maker):
+        """
+        arg: 
+            problem_class (class) - class initialised with one argument - one of
+            level objects returned by lvl_maker() function. 
+            It must also have a .solve() method which takes one argument - 
+            a sample returned by sampler() function - and returns  the solution 
+            to the problem using that sample.
+
+            sampler (func) - two argument function which takes the two
+            level obects returned by the lvl_maker() function.
+            
+            lvl_maker (func) - two argument function which takes two integer
+            levels (counting from 0) and returns a tuple of two level objects at
+            the specified levels. 
+            If the second argument is None then the returned level obect for that
+            level is None too.
+        """
         self.problem_class = problem_class
         self.sampler = sampler
         self.lvl_maker = lvl_maker
@@ -91,7 +102,7 @@ class MLMC_Problem:
         self._result = sum(self._level_list)
         return self._result
 
-
+# HELPER CLASS
 class P_level:
     def __init__(self, problem_class, sampler, lvl_f, lvl_c):
         # Assignments
