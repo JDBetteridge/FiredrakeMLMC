@@ -3,22 +3,43 @@ from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
 
+import time
+
 from MLMCv5 import MLMC_Solver, MLMC_Problem, P_level
 
 rg = RandomGenerator(MT19937(12345))
 
 def samp(lvl_f, lvl_c):
-    ans = 20*rg.random_sample()
-    return ans, ans
+    start = time.time()
+    rand = 20*rg.random_sample()
+    samp_c = None
+    
+    #print(lvl_f.mesh())
+    x_f, y_f = SpatialCoordinate(lvl_f.mesh())
+    base_f = exp(-(((x_f-0.5)**2)/2) - (((y_f-0.5)**2)/2))
+    samp_f = Function(lvl_f)
+    samp_f.interpolate(Constant(rand)*base_f)
+    #print(type(samp_f))
+
+    if lvl_c != None:
+        x_c, y_c = SpatialCoordinate(lvl_c.mesh())
+        base_c = exp(-(((x_c-0.5)**2)/2) - (((y_c-0.5)**2)/2))
+        samp_c = Function(lvl_c)
+        samp_c.interpolate(Constant(rand)*base_c)
+
+    print("samp time: {}".format(time.time() - start))
+
+    return samp_f, samp_c
 
 
 def lvl_maker(level_f, level_c):
     coarse_mesh = UnitSquareMesh(10, 10)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return hierarchy[level_f], None
+        return FunctionSpace(hierarchy[level_f], "Lagrange", 4), None
     else:
-        return hierarchy[level_f], hierarchy[level_c]
+        return FunctionSpace(hierarchy[level_f], "Lagrange", 4), \
+        FunctionSpace(hierarchy[level_c], "Lagrange", 4)
 
 
 class problemClass:
@@ -29,13 +50,14 @@ class problemClass:
     """
     def __init__(self, level_obj):
         
-        self._V = FunctionSpace(level_obj, "Lagrange", 4)
-        self._sample = Constant(0)
+        self._V = level_obj
+        self._sample = Function(self._V)
         self._uh = Function(self._V)
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        self._sample.assign(Constant(sample))
+        #print(self._V.mesh())
+        self._sample.assign(sample)
         self._vs.solve()
         return assemble(Constant(0.5) * dot(self._uh, self._uh) * dx)
     
@@ -44,12 +66,10 @@ class problemClass:
         u = TrialFunction(self._V)
         v = TestFunction(self._V)
 
-        x, y = SpatialCoordinate(self._V.mesh())
-        base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
         a = (dot(grad(v), grad(u)) + v * u) * dx
 
         bcs = DirichletBC(self._V, 0, (1,2,3,4))
-        f = self._sample*base_f
+        f = self._sample
         L = f * v * dx
         vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
         return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})

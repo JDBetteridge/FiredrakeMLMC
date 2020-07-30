@@ -53,9 +53,9 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [1000, 200, 10]
+    repetitions = [100, 50, 10]
     estimate = MLMC_general_scalar(problemClass, samp, levels, repetitions, True)
-
+    print(estimate)
 
 if __name__ == '__main__':
     general_test()

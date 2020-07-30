@@ -34,8 +34,9 @@ class MLMC_Solver:
             # Sampling now begins
             for j in range(self.repetitions[i]):
                 logging.info("Sample {} of {}".format(j+1, self.repetitions[i]))
-
+                s2 = time.time()
                 self.MLMCproblem.addTerm(i) # Calculate result from sample
+                print("tot: {}".format(time.time()-s2))
 
             # This corresponds to the inner sum in the MLMC eqn.
             self.MLMCproblem.averageLevel(i)
@@ -60,7 +61,10 @@ class MLMC_Problem:
             to the problem using that sample.
 
             sampler (func) - two argument function which takes the two
-            level obects returned by the lvl_maker() function.
+            level obects returned by the lvl_maker() function. Function returns 
+            a tuple of two samples for each of the input level.
+            If second input arg is None then return None for second item in output
+            list.
             
             lvl_maker (func) - two argument function which takes two integer
             levels (counting from 0) and returns a tuple of two level objects at
