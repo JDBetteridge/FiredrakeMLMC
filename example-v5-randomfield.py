@@ -2,23 +2,36 @@ from firedrake import *
 from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
+from matern import matern 
+
+import time
 
 from MLMCv5 import MLMC_Solver, MLMC_Problem
 
-rg = RandomGenerator(MT19937(12345))
+#rg = RandomGenerator(MT19937(12345))
 
 def samp(lvl_f, lvl_c):
-    ans = 20*rg.random_sample()
-    return ans, ans
+    start = time.time()
+    samp_c = None
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1)
+
+    if lvl_c != None:
+        samp_c = Function(lvl_c)
+        inject(samp_f, samp_c)
+
+    print("samp time: {}".format(time.time() - start))
+
+    return samp_f, samp_c
 
 
 def lvl_maker(level_f, level_c):
     coarse_mesh = UnitSquareMesh(10, 10)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return hierarchy[level_f], None
+        return FunctionSpace(hierarchy[level_f], "CG", 2), None
     else:
-        return hierarchy[level_f], hierarchy[level_c]
+        return FunctionSpace(hierarchy[level_f], "CG", 2), \
+        FunctionSpace(hierarchy[level_c], "CG", 2)
 
 
 class problemClass:
@@ -29,32 +42,32 @@ class problemClass:
     """
     def __init__(self, level_obj):
         
-        self._V = FunctionSpace(level_obj, "Lagrange", 4)
-        self._sample = Constant(0)
-        self._uh = Function(self._V)
+        self._V = level_obj
+        self._sample = Function(self._V)
+        self._qh = Function(self._V)
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        self._sample.assign(Constant(sample))
+        #print(self._V.mesh())
+        self._sample.assign(sample)
         self._vs.solve()
-        return assemble(Constant(0.5) * dot(self._uh, self._uh) * dx)
+        return assemble(Constant(0.5) * dot(self._qh, self._qh) * dx)
     
     # HELPER
     def initialise_problem(self):
-        u = TrialFunction(self._V)
-        v = TestFunction(self._V)
 
-        x, y = SpatialCoordinate(self._V.mesh())
-        base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-        a = (dot(grad(v), grad(u)) + v * u) * dx
+        q = TrialFunction(self._V)
+        p = TestFunction(self._V)
+        u = self._sample
 
-        bcs = DirichletBC(self._V, 0, (1,2,3,4))
-        f = self._sample*base_f
-        L = f * v * dx
-        vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
-        return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
-    
-   
+        a = inner(exp(u)*grad(q), grad(p))*dx
+        L = inner(Constant(1.0), p)*dx
+        bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
+
+        vp = LinearVariationalProblem(a, L, self._qh, bcs=bcs)
+        solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
+        
+        return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
 def general_test():
     # Levels and repetitions
@@ -64,9 +77,9 @@ def general_test():
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()
     print(estimate)
-    evaluate_result(estimate)
+    #evaluate_result(estimate)
 
-
+"""
 def evaluate_result(result):
     with open("10_int.json") as handle:
         e_10 = json.load(handle)
@@ -98,9 +111,9 @@ def evaluate_result(result):
     convergence_tests(result)
 
 def convergence_tests(param = None):
-    """
-    Function which compares result to 10,000 sample MC 
-    """
+
+    # Function which compares result to 10,000 sample MC 
+    
     with open("20000_list.json") as handle:
             results = json.load(handle)
     
@@ -113,6 +126,7 @@ def convergence_tests(param = None):
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.show()
 
+"""
 
 if __name__ == '__main__':
     general_test()

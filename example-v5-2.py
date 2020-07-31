@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import time
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem, P_level
+from MLMCv5 import MLMC_Solver, MLMC_Problem
 
 rg = RandomGenerator(MT19937(12345))
 

@@ -149,6 +149,16 @@ class P_level:
         return 0
 
 
+def do_MC(problem_class, repititions, level_ob, sampler):
+    solutions = []
+
+    prob = problem_class(level_ob)
+    for i in range(repititions):
+        new_sample, x = sampler(level_ob, None)
+
+        solutions.append(prob.solve(new_sample))
+    
+    return solutions
 
 
     
