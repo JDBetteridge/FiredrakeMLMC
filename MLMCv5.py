@@ -69,8 +69,8 @@ class MLMC_Problem:
             lvl_maker (func) - two argument function which takes two integer
             levels (counting from 0) and returns a tuple of two level objects at
             the specified levels. 
-            If the second argument is None then the returned level obect for that
-            level is None too.
+            If the second argument is < 0 then the returned level obect for that
+            level is None.
         """
         self.problem_class = problem_class
         self.sampler = sampler
@@ -100,6 +100,7 @@ class MLMC_Problem:
     
     def averageLevel(self, level):
         self._level_list[level] = self._level_list[level].get_average()
+        print(self._level_list)
 
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
@@ -151,13 +152,14 @@ class P_level:
 
 def do_MC(problem_class, repititions, level_ob, sampler):
     solutions = []
-
+    s = time.time()
     prob = problem_class(level_ob)
     for i in range(repititions):
+        print("Sample {} of {}".format(i+1, repititions))
         new_sample, x = sampler(level_ob, None)
 
         solutions.append(prob.solve(new_sample))
-    
+    print("Total time: {}".format(time.time()-s))
     return solutions
 
 
