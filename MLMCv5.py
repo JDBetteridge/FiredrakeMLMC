@@ -42,12 +42,12 @@ class MLMC_Solver:
             self.MLMCproblem.averageLevel(i)
         
         # Outer sum in MLMC eqn.
-        self._result = self.MLMCproblem.sumAllLevels()
+        self._result, lvls = self.MLMCproblem.sumAllLevels()
         
         end = time.time()
         logging.info("Runtime: {}s".format(end - start))
 
-        return self._result
+        return self._result, lvls
     
 
 class MLMC_Problem:
@@ -105,7 +105,7 @@ class MLMC_Problem:
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
         self._result = sum(self._level_list)
-        return self._result
+        return self._result, self._level_list
 
 # HELPER CLASS
 class P_level:

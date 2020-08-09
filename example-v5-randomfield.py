@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from matern import matern 
 
 import time
+import math
 
 from MLMCv5 import MLMC_Solver, MLMC_Problem, do_MC
 
-#rg = RandomGenerator(MT19937(12345))
 
 def samp(lvl_f, lvl_c):
     start = time.time()
@@ -73,13 +73,15 @@ class problemClass:
 
 def general_test():
     # Levels and repetitions
-    levels = 4
-    repetitions = [100, 100, 100, 100]
+    levels = 5
+    repetitions = [100, 100, 100, 100, 100]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
-    estimate = MLMCsolv.solve()
-    print(estimate)
-    evaluate_result(estimate)
+    estimate, lvls = MLMCsolv.solve()
+    with open('MLMC_100r_5lvl_20dim.json', 'w') as f:
+        json.dump(lvls, f)
+    #evaluate_result(estimate)
+
 
 
 def test_MC(reps, mesh_dim):
@@ -101,7 +103,23 @@ def test_MC(reps, mesh_dim):
 
 
 
+def croci_convergence():
+    with open("MLMC_100r_5lvl_20dim.json") as handle:
+        level_res = json.load(handle) 
+    
+    levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
+    fig, axes = plt.subplots()
 
+    axes.plot(levels[1:], level_res[1:], 'x', color='k') 
+    h2 = [0.03*i**2 for i in levels]
+
+    axes.plot(levels[1:], h2[1:], '--', color='k') 
+    
+    axes.set_yscale('log')
+    axes.set_xscale('log')
+    plt.show()
+
+    
 
 def evaluate_result(result):
 
@@ -118,35 +136,38 @@ def convergence_tests(param = None):
 
     # Function which compares result to 10,000 sample MC 
     
-    with open("randomfieldMC_500r_160dim.json") as handle:
+    with open("randomfieldMC_1000r_160dim.json") as handle:
             results1 = json.load(handle)
     
-    with open("randomfieldMC_500r_10dim.json") as handle:
-            results2 = json.load(handle)
     
-    with open("randomfieldMC_500r_20dim.json") as handle:
+    with open("randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
     
-    with open("randomfieldMC_500r_40dim.json") as handle:
+    with open("randomfieldMC_1000r_40dim.json") as handle:
             results4 = json.load(handle)
 
-    with open("randomfieldMC_500r_80dim.json") as handle:
+    with open("randomfieldMC_1000r_80dim.json") as handle:
             results5 = json.load(handle)
     
-    res1 = [sum(results1[:i+1])/(i+1) for i in range(len(results1))]
-    res2 = [sum(results2[:i+1])/(i+1) for i in range(len(results2))]
-    res3 = [sum(results3[:i+1])/(i+1) for i in range(len(results3))]
-    res4 = [sum(results4[:i+1])/(i+1) for i in range(len(results4))]
-    res5 = [sum(results5[:i+1])/(i+1) for i in range(len(results5))]
+    
+    res160 = [sum(results1[:i+1])/(i+1) for i in range(len(results1))]
+    res20 = [sum(results3[:i+1])/(i+1) for i in range(len(results3))]
+    res40 = [sum(results4[:i+1])/(i+1) for i in range(len(results4))]
+    res80 = [sum(results5[:i+1])/(i+1) for i in range(len(results5))]
+
 
     #print(res2[0], results[0])
+    limit = res160[-1]
+    #show_results(res20, res40, res80, res160, param)
+    convergence(res160, res80, res40, res20, limit)
+
+def show_results(res1, res2, res3, res4, param):
     fig, axes = plt.subplots()
-    x = [i for i in range(500)]
-    axes.plot(x, res2, 'y', label="10x10") 
-    axes.plot(x, res3, 'orange', label="20x20") 
-    axes.plot(x, res4, 'r', label="40x40")
-    axes.plot(x, res5, 'brown', label="80x80")
-    axes.plot(x, res1, 'k', label="160x160")
+    x2 = [i for i in range(1000)]
+    axes.plot(x2, res1, 'y', label="20x20") 
+    axes.plot(x2, res2, 'orange', label="40x40") 
+    axes.plot(x2, res3, 'r', label="80x80")
+    axes.plot(x2, res4, 'brown', label="160x160")
     if param != None:
         plt.axhline(y=param, color='b', label="MLMC Solution")
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
@@ -154,13 +175,53 @@ def convergence_tests(param = None):
     axes.set_ylabel('Solution')
     axes.set_xlabel('Repititions')
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-
     plt.show()
+
+def convergence(res, res2, res3, res4, limit):
+
+    logN, error = convergence_check(res, limit)
+    logN2, error2 = convergence_check(res2, limit)
+    logN3, error3 = convergence_check(res3, limit)
+    logN4, error4 = convergence_check(res4, limit)
+
+
+    halfx = [(error4[0])*i**(-0.5) for i in logN]
+    halfx2 = [(error[0])*i**(-0.5) for i in logN]
+
+    fig, axes = plt.subplots()
+
+    axes.plot(logN, error, 'brown', label=r'160x160') 
+    axes.plot(logN2, error2, 'r', label=r'80x80') 
+    axes.plot(logN3, error3, 'orange', label=r'40x40') 
+    axes.plot(logN4, error4, 'gold', label=r'20x20') 
+
+
+    axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
+    axes.plot(logN, halfx2, '--', color='k') 
+    
+    axes.set_ylabel(r'$\mathbb{E} [ q ]$', fontsize=14)
+    axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
+    axes.set_yscale('log')
+    axes.set_xscale('log')
+    plt.style.use('classic')
+    plt.legend(loc="lower left", prop={'size': 10})
+
+    plt.tight_layout()
+    plt.show()
+
+def convergence_check(res, limit):
+    error = [abs(limit-element) for element in res]
+    logN = [i+1 for i in range(len(res))]
+    return logN, error
+
 
 
 
 if __name__ == '__main__':
-    general_test()
-    #test_MC(500, 20)
-    #test_MC(500, 80)
+    #general_test()
+    #test_MC(1000, 10)
+    #test_MC(1000, 40)
+    #test_MC(1000, 80)
+    test_MC(1000, 320)
     #convergence_tests()
+    #croci_convergence()
