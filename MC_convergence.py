@@ -60,12 +60,15 @@ def convergence(res):
     fig, axes = plt.subplots()
     axes.plot(logN, error, 'y', label=r'Approximation') 
     axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
-    axes.set_ylabel(r'Error in $\pi$ Approximation')
-    axes.set_xlabel('Repititions')
+    axes.set_ylabel(r'Error in $\pi$ Approximation, $\varepsilon$')
+    axes.set_xlabel(r'Repititions, $N$')
     axes.set_yscale('log')
     axes.set_xscale('log')
     plt.style.use('classic')
-    plt.legend(loc="lower left", prop={'size': 12})
+    plt.legend(loc="best", prop={'size': 12})
+    
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
 
     plt.tight_layout()
     plt.show()
@@ -73,5 +76,5 @@ def convergence(res):
 
 
 #getcontext().prec = 50
-res = gen(100000)
+res = gen(1000)
 convergence(res)

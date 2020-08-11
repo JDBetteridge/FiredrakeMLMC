@@ -9,11 +9,12 @@ import math
 
 from MLMCv5 import MLMC_Solver, MLMC_Problem, do_MC
 
+plt.rcParams['mathtext.fontset'] = 'stix'
 
 def samp(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1)
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=3, )
 
     if lvl_c != None:
         samp_c = Function(lvl_c)
@@ -78,7 +79,7 @@ def general_test():
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()
-    with open('MLMC_100r_5lvl_20dim.json', 'w') as f:
+    with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
         json.dump(lvls, f)
     #evaluate_result(estimate)
 
@@ -106,17 +107,25 @@ def test_MC(reps, mesh_dim):
 def croci_convergence():
     with open("MLMC_100r_5lvl_20dim.json") as handle:
         level_res = json.load(handle) 
-    
+    print(level_res)
     levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
     fig, axes = plt.subplots()
 
-    axes.plot(levels[1:], level_res[1:], 'x', color='k') 
+    a = axes.plot(levels[1:], level_res[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)') 
     h2 = [0.03*i**2 for i in levels]
 
-    axes.plot(levels[1:], h2[1:], '--', color='k') 
+    axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(1/n^2)$') 
     
     axes.set_yscale('log')
     axes.set_xscale('log')
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_\ell\right\Vert^2_{L^2} - \left\Vert q_{\ell-1}\right\Vert^2_{L^2}\right]$', fontsize=16)
+    axes.set_xlabel(r'$1/n_\ell$', fontsize=16)
+    plt.tight_layout()
+    plt.style.use('classic')
+    plt.legend(loc='best', prop={'size': 13}, numpoints=1)
+
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
     plt.show()
 
     
@@ -139,6 +148,8 @@ def convergence_tests(param = None):
     with open("randomfieldMC_1000r_160dim.json") as handle:
             results1 = json.load(handle)
     
+    with open("randomfieldMC_1000r_320dim.json") as handle:
+            results2 = json.load(handle)
     
     with open("randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
@@ -151,60 +162,73 @@ def convergence_tests(param = None):
     
     
     res160 = [sum(results1[:i+1])/(i+1) for i in range(len(results1))]
+    res320 = [sum(results2[:i+1])/(i+1) for i in range(len(results2))]
     res20 = [sum(results3[:i+1])/(i+1) for i in range(len(results3))]
     res40 = [sum(results4[:i+1])/(i+1) for i in range(len(results4))]
     res80 = [sum(results5[:i+1])/(i+1) for i in range(len(results5))]
 
 
     #print(res2[0], results[0])
-    limit = res160[-1]
-    #show_results(res20, res40, res80, res160, param)
-    convergence(res160, res80, res40, res20, limit)
+    limit = res320[-1]
+    #show_results(res20, res40, res80, res160, res320, param)
+    convergence(res160, res80, res40, res20, res320, limit)
 
-def show_results(res1, res2, res3, res4, param):
+def show_results(res1, res2, res3, res4, res5, param):
     fig, axes = plt.subplots()
     x2 = [i for i in range(1000)]
-    axes.plot(x2, res1, 'y', label="20x20") 
+    axes.plot(x2, res1, 'gold', label="20x20") 
     axes.plot(x2, res2, 'orange', label="40x40") 
     axes.plot(x2, res3, 'r', label="80x80")
     axes.plot(x2, res4, 'brown', label="160x160")
+    axes.plot(x2, res5, 'k', label="320x320")
     if param != None:
         plt.axhline(y=param, color='b', label="MLMC Solution")
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
-    axes.legend()
-    axes.set_ylabel('Solution')
-    axes.set_xlabel('Repititions')
+    plt.style.use('classic')
+    axes.legend(loc="best", prop={'size': 10})
+    
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q\right\Vert^2_{L^2} \right]$', fontsize=14)
+    axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
+    
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
+    
+    plt.tight_layout()
     plt.show()
 
-def convergence(res, res2, res3, res4, limit):
+def convergence(res, res2, res3, res4, res5, limit):
 
     logN, error = convergence_check(res, limit)
     logN2, error2 = convergence_check(res2, limit)
     logN3, error3 = convergence_check(res3, limit)
     logN4, error4 = convergence_check(res4, limit)
+    logN5, error5 = convergence_check(res5, limit)
 
 
     halfx = [(error4[0])*i**(-0.5) for i in logN]
-    halfx2 = [(error[0])*i**(-0.5) for i in logN]
+    halfx2 = [(error5[0]*0.1)*i**(-0.5) for i in logN]
 
     fig, axes = plt.subplots()
 
-    axes.plot(logN, error, 'brown', label=r'160x160') 
-    axes.plot(logN2, error2, 'r', label=r'80x80') 
-    axes.plot(logN3, error3, 'orange', label=r'40x40') 
     axes.plot(logN4, error4, 'gold', label=r'20x20') 
-
+    #axes.plot(logN3, error3, 'orange', label=r'40x40')
+    #axes.plot(logN2, error2, 'r', label=r'80x80') 
+    #axes.plot(logN, error, 'brown', label=r'160x160') 
+    axes.plot(logN5, error5, 'k', label=r'320x320') 
+    
 
     axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
     axes.plot(logN, halfx2, '--', color='k') 
     
-    axes.set_ylabel(r'$\mathbb{E} [ q ]$', fontsize=14)
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_L \right\Vert^2_{L^2} \right] - \mathrm{\mathbb{E}} \left[\left\Vert q_\ell \right\Vert^2_{L^2} \right]$', fontsize=14)
     axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
     axes.set_yscale('log')
     axes.set_xscale('log')
     plt.style.use('classic')
-    plt.legend(loc="lower left", prop={'size': 10})
+    plt.legend(loc="best", prop={'size': 10})
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
 
     plt.tight_layout()
     plt.show()
@@ -222,6 +246,6 @@ if __name__ == '__main__':
     #test_MC(1000, 10)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
-    test_MC(1000, 320)
+    #test_MC(1000, 320)
     #convergence_tests()
-    #croci_convergence()
+    croci_convergence()
