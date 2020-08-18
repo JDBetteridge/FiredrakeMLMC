@@ -1,3 +1,7 @@
+"""
+Like example-v5.py but sampler returns a field
+"""
+
 from firedrake import *
 from randomgen import RandomGenerator, MT19937
 import json

@@ -64,7 +64,7 @@ def general_test():
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()
     print(estimate)
-    evaluate_result(estimate)
+    evaluate_result(estimate[0])
 
 
 def evaluate_result(result):

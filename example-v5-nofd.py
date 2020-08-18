@@ -22,7 +22,7 @@ def lvl_maker(level_f, level_c):
 rg = RandomGenerator(MT19937(12345))
 def samp(level, level2):
     ans = [rg.random_sample()*1000 for i in range(10)]
-    print(ans)
+    #print(ans)
     if level2 == None:
         return ans, None
     return ans, ans
@@ -30,8 +30,8 @@ def samp(level, level2):
 
 def general_test():
     # Levels and repetitions
-    levels = 3
-    repetitions = [10, 5, 2]
+    levels = 5
+    repetitions = [1000, 500, 250, 125, 60]
     MLMCprob = MLMC_Problem(binProblem, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()

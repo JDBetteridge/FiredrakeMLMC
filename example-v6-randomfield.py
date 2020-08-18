@@ -1,4 +1,5 @@
 from firedrake import *
+from mpi4py import MPI
 from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
@@ -7,7 +8,7 @@ from matern import matern
 import time
 import math
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem, do_MC
+from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 
@@ -20,13 +21,13 @@ def samp(lvl_f, lvl_c):
         samp_c = Function(lvl_c)
         inject(samp_f, samp_c)
 
-    print("samp time: {}".format(time.time() - start))
+    #print("samp time: {}".format(time.time() - start))
 
     return samp_f, samp_c
 
 
-def lvl_maker(level_f, level_c):
-    coarse_mesh = UnitSquareMesh(20, 20)
+def lvl_maker(level_f, level_c, comm):
+    coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
         return FunctionSpace(hierarchy[level_f], "CG", 2), None
@@ -53,7 +54,7 @@ class problemClass:
         #print(self._V.mesh())
         self._sample.assign(sample)
         self._vs.solve()
-        print(self._V.mesh())
+        #print(self._V.mesh())
         return assemble(dot(self._qh, self._qh) * dx)
     
     # HELPER
@@ -75,15 +76,13 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [5, 5, 5]
+    repetitions = [12, 6, 2]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
-    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
+    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD)
     estimate, lvls = MLMCsolv.solve()
-    print(estimate)
     print(lvls)
-    #with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
-        #json.dump(lvls, f)
-    #evaluate_result(estimate)
+    print(estimate)
+    
 
 
 
