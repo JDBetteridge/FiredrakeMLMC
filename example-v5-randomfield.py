@@ -7,7 +7,7 @@ from matern import matern
 import time
 import math
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem, do_MC
+from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 

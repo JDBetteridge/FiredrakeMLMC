@@ -5,7 +5,7 @@ import logging
 
 class MLMC_Solver:
 
-    def __init__ (self, problem, levels, repetitions, comm):
+    def __init__ (self, problem, levels, repetitions, comm=None):
         """
         arg: 
             problem (class) - MLMC_Solver object containing problem.
@@ -15,20 +15,21 @@ class MLMC_Solver:
         self.MLMCproblem = problem
         self.levels = levels
         self.repetitions = repetitions
+        self._new_reps = repetitions
 
         self._result = None
+        self._comms = None
         
-        self._comms = [comm]
-        self._new_reps = [self.repetitions[-1]]
-        
+        self._logger = self.initialise_logger()
+
         # Initialise the comms and send them to the problem
-        self.initialise_communicators()
-        self.MLMCproblem.set_comms(self._comms)
+        if comm != None:
+            self._comms = [comm]
+            self._new_reps = [self.repetitions[-1]]
+            self.initialise_communicators()
+            self.MLMCproblem.set_comms(self._comms)
 
     def solve(self):
-        log = logging.getLogger("MLMC-logger")
-        log.setLevel(logging.INFO)
-        #logging.basicConfig(format='%(message)s', level=logging.INFO)
         start = time.time()
 
         assert len(self.repetitions) == self.levels, \
@@ -38,16 +39,15 @@ class MLMC_Solver:
 
         # Iterate through each level in hierarchy
         for i in range(self.levels):
-            log.warning("LEVEL {} - {} Samples".format(i+1, self.repetitions[i]))
+            self._logger.info("LEVEL {} - {} Samples".format(i+1, self.repetitions[i]))
 
             self.MLMCproblem.newLevel(i) # Create P_level obj in soln list
             
             # Sampling now begins
             for j in range(self._new_reps[i]):
-                log.warning("Sample {} of {}".format(j+1, self._new_reps[i]))
-                s2 = time.time()
+                self._logger.info("Sample {} of {}".format(j+1, self._new_reps[i]))
+                
                 self.MLMCproblem.addTerm(i) # Calculate result from sample
-                #print("tot: {}".format(time.time()-s2))
 
             # This corresponds to the inner sum in the MLMC eqn.
             self.MLMCproblem.averageLevel(i)
@@ -56,7 +56,7 @@ class MLMC_Solver:
         self._result, lvls = self.MLMCproblem.sumAllLevels()
         
         end = time.time()
-        log.warning("Runtime: {}s".format(end - start))
+        self._logger.info("Runtime: {}s".format(end - start))
 
         return self._result, lvls
     
@@ -69,6 +69,13 @@ class MLMC_Solver:
 
             self._comms.insert(0, new_comm)
             self._new_reps.insert(0, int(self.repetitions[-(i+2)]/ratio))
+    
+    def initialise_logger(self):
+        logger = logging.getLogger("MLMC-logger")
+        logger.setLevel(logging.INFO)
+        file_handler = logging.StreamHandler()
+        logger.addHandler(file_handler)
+        return logger
         
 
 class MLMC_Problem:
@@ -101,23 +108,26 @@ class MLMC_Problem:
         self._level_list = None
         self._result = None
 
-        # List with entry for each level
-        # When entry == False level calculation has not begun
-        # When type(entry) == P_level obj calculation in progress (summing terms)
-        # When type(entry) == float obj calculation on that level completed
+
 
     def set_comms(self, comms):
         self._comms = comms
 
-      
+    # List with entry for each level
+    # When entry == False level calculation has not begun
+    # When type(entry) == P_level obj calculation in progress (summing terms)
+    # When type(entry) == float obj calculation on that level completed 
     def initialise_level_list(self, levels):
         self._level_list = [False for i in range(levels)]
         self._result = np.array([0 for i in range(levels)], dtype=np.float64)
 
     def newLevel(self, level):
-        # add communicator in here
         # if second term is negative return None in 2nd output
-        lvl_f, lvl_c = self.lvl_maker(level, level-1, self._comms[level])
+        if self._comms != None:
+            lvl_f, lvl_c = self.lvl_maker(level, level-1, self._comms[level])
+        else:
+            lvl_f, lvl_c = self.lvl_maker(level, level-1)
+
         self._level_list[level] = P_level(self.problem_class, self.sampler, lvl_f, lvl_c)
 
     def addTerm(self, level):
@@ -130,11 +140,14 @@ class MLMC_Problem:
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
         #print(self._level_list)
-        self._comms[-1].Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE], [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
+        if self._comms != None :
+            self._comms[-1].Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE], 
+            [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
+            
+            self._result = sum(self._result) / self._comms[-1].Get_size()
+        else:
+            self._result = sum(self._level_list)
         
-        #print("res: ", self._result)
-        self._result = sum(self._result) / self._comms[-1].Get_size()
-        #print(self._result)
         return self._result, self._level_list
 
 # HELPER CLASS

@@ -1,7 +1,7 @@
 import numpy as np
 from randomgen import RandomGenerator, MT19937
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem, do_MC
+from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
 class binProblem:
     def __init__(self, level_obj):
