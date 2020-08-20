@@ -53,7 +53,7 @@ class problemClass:
         #print(self._V.mesh())
         self._sample.assign(sample)
         self._vs.solve()
-        print(self._V.mesh())
+        #print(self._V.mesh())
         return assemble(dot(self._qh, self._qh) * dx)
     
     # HELPER
@@ -75,7 +75,7 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [5, 5, 5]
+    repetitions = [1000, 500, 250]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()

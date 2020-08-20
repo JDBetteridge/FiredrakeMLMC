@@ -23,7 +23,7 @@ class MLMC_Solver:
         self._logger = self.initialise_logger()
 
         # Initialise the comms and send them to the problem
-        if comm != None:
+        if comm is not None:
             self._comms = [comm]
             self._new_reps = [self.repetitions[-1]]
             self.initialise_communicators()
@@ -61,14 +61,27 @@ class MLMC_Solver:
         return self._result, lvls
     
     def initialise_communicators(self):
+        colour_list = []
         for i in range(self.levels-1):
             color = self._comms[0].Get_rank() % 2
+            colour_list.append(color)
             new_comm = self._comms[0].Split(color=color)
 
-            ratio = self._comms[-1].Get_size() / new_comm.Get_size()
-
+            num_comms = self._comms[-1].Get_size() / new_comm.Get_size()
             self._comms.insert(0, new_comm)
-            self._new_reps.insert(0, int(self.repetitions[-(i+2)]/ratio))
+
+            rep = int(self.repetitions[-(i+2)]//num_comms)
+            rep_r = self.repetitions[-(i+2)]%num_comms
+            # Find decimal number of colour_num binary list
+            colour_num = int("".join(map(str, colour_list)),2)
+            
+            # decimal number found should always be less than num_comms
+            assert num_comms == 2**len(colour_list), \
+            ("Communicator Division Error: Must be an even number of cores in COMM_WORLD")
+            # Distribute remainder across cores
+            if colour_num < rep_r:
+                rep += 1
+            self._new_reps.insert(0, int(rep))
     
     def initialise_logger(self):
         logger = logging.getLogger("MLMC-logger")
@@ -140,7 +153,7 @@ class MLMC_Problem:
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
         #print(self._level_list)
-        if self._comms != None :
+        if self._comms is not None :
             self._comms[-1].Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE], 
             [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
             
@@ -162,12 +175,11 @@ class P_level:
         self._sample_counter = 0
 
         self.problem_f = problem_class(self._lvl_f)
-        if self._lvl_c != None:
+        if self._lvl_c is not None:
             self.problem_c = problem_class(self._lvl_c)
 
 
     def get_average(self):
-        self._hierarchy = None # For memory conservation clear hierarchy
         return self._value/self._sample_counter
         
 
@@ -176,14 +188,14 @@ class P_level:
         Calculates result from new sample and adds it to _value. This is 
         equivalent to inner sum in MLMC equation.
         """
-        if self._value == None:
+        if self._value is None:
             self._value = 0
 
         # Generate sample and solve problems with sample
         sample_f, sample_c = self.sampler(self._lvl_f, self._lvl_c)
         e_f = self.problem_f.solve(sample_f)
 
-        if self._lvl_c != None:  
+        if self._lvl_c is not None:  
             e_c = self.problem_c.solve(sample_c)
             self._value +=  e_f - e_c
         else:
