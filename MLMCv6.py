@@ -19,6 +19,7 @@ class MLMC_Solver:
 
         self._result = None
         self._comms = None
+        self._did_calculate = None
         
         self._logger = self.initialise_logger()
 
@@ -26,8 +27,9 @@ class MLMC_Solver:
         if comm is not None:
             self._comms = [comm]
             self._new_reps = [self.repetitions[-1]]
+            self._did_calculate = [1]
             self.initialise_communicators()
-            self.MLMCproblem.set_comms(self._comms)
+            self.MLMCproblem.set_comms(self._comms, self._did_calculate)
 
     def solve(self):
         start = time.time()
@@ -70,7 +72,7 @@ class MLMC_Solver:
             num_comms = self._comms[-1].Get_size() / new_comm.Get_size()
             self._comms.insert(0, new_comm)
 
-            rep = int(self.repetitions[-(i+2)]//num_comms)
+            rep = self.repetitions[-(i+2)]//num_comms
             rep_r = self.repetitions[-(i+2)]%num_comms
             # Find decimal number of colour_num binary list
             colour_num = int("".join(map(str, colour_list)),2)
@@ -82,6 +84,15 @@ class MLMC_Solver:
             if colour_num < rep_r:
                 rep += 1
             self._new_reps.insert(0, int(rep))
+            
+            # If no reps performed make not to ensure the correct average is taken
+            if rep == 0:
+                self._did_calculate.insert(0, 0)
+            else:
+                self._did_calculate.insert(0, 1)
+
+
+
     
     def initialise_logger(self):
         logger = logging.getLogger("MLMC-logger")
@@ -120,11 +131,13 @@ class MLMC_Problem:
         self._comms = None
         self._level_list = None
         self._result = None
+        self._did_calculate = None
 
 
 
-    def set_comms(self, comms):
+    def set_comms(self, comms, did_calc):
         self._comms = comms
+        self._did_calculate = did_calc
 
     # List with entry for each level
     # When entry == False level calculation has not begun
@@ -146,8 +159,15 @@ class MLMC_Problem:
     def addTerm(self, level):
         self._level_list[level].calculate_term()
     
-    def averageLevel(self, level):
-        self._level_list[level] = self._level_list[level].get_average()
+    def averageLevel(self, level): 
+        avg = self._level_list[level].get_average()
+        if avg is None:
+            assert self._did_calculate[level] == 0,("No calculations done communicator unexpectedly")
+            self._level_list[level] = 0.0
+        else:
+            self._level_list[level] = avg
+
+
         #print(self._level_list)
 
     def sumAllLevels(self):
@@ -157,9 +177,15 @@ class MLMC_Problem:
             self._comms[-1].Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE], 
             [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
             
-            self._result = sum(self._result) / self._comms[-1].Get_size()
-        else:
-            self._result = sum(self._level_list)
+            calculations_made = np.ones_like(self._did_calculate, dtype=np.float64)
+            self._comms[-1].Reduce([np.array(self._did_calculate, dtype=np.float64), MPI.DOUBLE], 
+            [calculations_made, MPI.DOUBLE], op=MPI.SUM, root=0)
+
+            logging.warning(calculations_made)
+            self._level_list = self._result/ calculations_made
+            #self._result = sum(self._result/ calculations_made)
+        
+        self._result = sum(self._level_list)
         
         return self._result, self._level_list
 
@@ -180,6 +206,8 @@ class P_level:
 
 
     def get_average(self):
+        if self._value is None:
+            return None
         return self._value/self._sample_counter
         
 

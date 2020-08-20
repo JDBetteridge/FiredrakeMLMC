@@ -4,7 +4,7 @@ from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
 from matern import matern 
-
+import logging
 import time
 import math
 
@@ -76,7 +76,7 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [12, 6, 2]
+    repetitions = [100, 50, 25]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD)
     estimate, lvls = MLMCsolv.solve()
