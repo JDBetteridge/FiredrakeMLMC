@@ -75,10 +75,11 @@ class problemClass:
 
 def general_test():
     # Levels and repetitions
-    levels = 3
-    repetitions = [100, 50, 25]
+    levels = 2
+    repetitions = [100, 50]
+    comm_limits = [[1,2], [2, 4]]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
-    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD)
+    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
     estimate, lvls = MLMCsolv.solve()
     print(lvls)
     print(estimate)

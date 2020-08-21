@@ -5,13 +5,14 @@ import logging
 
 class MLMC_Solver:
 
-    def __init__ (self, problem, levels, repetitions, comm=None):
+    def __init__ (self, problem, levels, repetitions, comm=None, comm_limits=None):
         """
         arg: 
             problem (class) - MLMC_Solver object containing problem.
             levels (int) - number of levels in MLMC
             repetitions (list) - repetitions at each level starting at coarsest
         """
+        self.check_inputs(levels, repetitions, comm, comm_limits)
         self.MLMCproblem = problem
         self.levels = levels
         self.repetitions = repetitions
@@ -25,17 +26,14 @@ class MLMC_Solver:
 
         # Initialise the comms and send them to the problem
         if comm is not None:
-            self._comms = [comm]
-            self._new_reps = [self.repetitions[-1]]
-            self._did_calculate = [1]
-            self.initialise_communicators()
+            self._comms = []
+            self._new_reps = []
+            self._did_calculate = []
+            self.initialise_communicators(comm, comm_limits)
             self.MLMCproblem.set_comms(self._comms, self._did_calculate)
 
     def solve(self):
         start = time.time()
-
-        assert len(self.repetitions) == self.levels, \
-        ("The levels arguement is not equal to the number of entries in repetitions")
 
         self.MLMCproblem.initialise_level_list(self.levels)
 
@@ -62,23 +60,29 @@ class MLMC_Solver:
 
         return self._result, lvls
     
-    def initialise_communicators(self):
-        colour_list = []
-        for i in range(self.levels-1):
-            color = self._comms[0].Get_rank() % 2
-            colour_list.append(color)
-            new_comm = self._comms[0].Split(color=color)
+    def initialise_communicators(self, entered_comm, comm_limits):
+        # colour list is a list of 0's and 1's that gives a binary number
+        colour_list = [0]
+        new_comm = entered_comm
+        for i in range(self.levels):
+            # decide whether to split
+            while new_comm.Get_size() > comm_limits[-(i+1)][1]:
+                colour = new_comm.Get_rank() % 2
+                colour_list.append(colour)
+                new_comm = new_comm.Split(color=colour)
 
-            num_comms = self._comms[-1].Get_size() / new_comm.Get_size()
             self._comms.insert(0, new_comm)
+            num_comms = entered_comm.Get_size() / new_comm.Get_size()
+            
 
-            rep = self.repetitions[-(i+2)]//num_comms
-            rep_r = self.repetitions[-(i+2)]%num_comms
+            rep = self.repetitions[-(i+1)]//num_comms
+            rep_r = self.repetitions[-(i+1)]%num_comms
+            
             # Find decimal number of colour_num binary list
             colour_num = int("".join(map(str, colour_list)),2)
             
             # decimal number found should always be less than num_comms
-            assert num_comms == 2**len(colour_list), \
+            assert num_comms == 2**len(colour_list-1), \
             ("Communicator Division Error: Must be an even number of cores in COMM_WORLD")
             # Distribute remainder across cores
             if colour_num < rep_r:
@@ -91,9 +95,18 @@ class MLMC_Solver:
             else:
                 self._did_calculate.insert(0, 1)
 
+    def check_inputs(self, levels, repetitions, comm, comm_limits):
+        assert len(repetitions) == levels, \
+        ("The levels arguement is not equal to the number of entries in repetitions")
+        if comm is not None:
+            assert comm_limits is not None, \
+            ("Must enter both comm and comm_limits arguments for parallel processing")
+            assert all(i[0]*2 <= i[1] for i in comm_limits), \
+            ("Comm max and min limits need to be different by at least a factor of two")
+            assert comm.Get_size() >= comm_limits[-1][0], \
+            ("Input communicator must be at least as large as min comm for highest level")
 
 
-    
     def initialise_logger(self):
         logger = logging.getLogger("MLMC-logger")
         logger.setLevel(logging.INFO)
@@ -108,7 +121,7 @@ class MLMC_Problem:
         arg: 
             problem_class (class) - class initialised with one argument - one of
             level objects returned by lvl_maker() function. 
-            It must also have a .solve() method which takes one argument - 
+            It must also have a solve() method which takes one argument - 
             a sample returned by sampler() function - and returns  the solution 
             to the problem using that sample.
 
@@ -124,6 +137,8 @@ class MLMC_Problem:
             If the second argument is < 0 then the returned level obect for that
             level is None.
         """
+        assert hasattr(problem_class, "solve") and callable(problem_class.solve), \
+        ("The input probem class needs a solve() method - see MLMC_Problem docstring")
         self.problem_class = problem_class
         self.sampler = sampler
         self.lvl_maker = lvl_maker

@@ -75,7 +75,7 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [1000, 500, 250]
+    repetitions = [10, 5, 2]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()
