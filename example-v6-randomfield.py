@@ -88,10 +88,25 @@ def general_test():
     repetitions = [500, 300, 250, 200]
     comm_limits = [[1, 7], [1, 25], [1, 40], [1, 65]]
     """
+    """
+    levels = 5
+    repetitions = [75, 50, 25, 10, 5]
+    comm_limits = [[0.5, 2], [0.5, 4], [1, 7], [1, 9], [1, 10]]
+       
+    levels = 4
+    repetitions = [75, 50, 25, 10]
+    comm_limits = [[0.5, 1], [0.5, 3], [1, 6], [1, 8]]
+
+    levels = 4
+    repetitions = [75, 50, 25, 10]
+    comm_limits = [[0.5, 1], [0.5, 5], [1, 6], [1, 10]]
+    """
+
+    """
     levels = 5
     repetitions = [20, 10, 7, 5, 2]
     comm_limits = [[0.5, 1], [0.5, 1], [1, 2], [1, 4], [1, 6]]
-
+    """
     
     
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
