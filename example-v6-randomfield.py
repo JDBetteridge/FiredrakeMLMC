@@ -74,10 +74,26 @@ class problemClass:
         return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
 def general_test():
+    """
     # Levels and repetitions
+    levels = 5
+    repetitions = [500, 300, 250, 200, 100]
+    comm_limits = [[1, 2], [1, 3], [1, 5], [1, 12], [1, 20]]
+    
+    levels = 5
+    repetitions = [500, 300, 250, 200, 100]
+    comm_limits = [[1, 5], [1, 10], [1, 20], [1, 50], [1, 50]]
+    
+    levels = 4
+    repetitions = [500, 300, 250, 200]
+    comm_limits = [[1, 7], [1, 25], [1, 40], [1, 65]]
+    """
     levels = 5
     repetitions = [20, 10, 7, 5, 2]
     comm_limits = [[0.5, 1], [0.5, 1], [1, 2], [1, 4], [1, 6]]
+
+    
+    
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
     estimate, lvls = MLMCsolv.solve()
