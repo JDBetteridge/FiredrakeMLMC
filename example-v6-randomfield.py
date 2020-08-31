@@ -70,12 +70,12 @@ class Problem_Class:
         return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
 def general_test():
-    """
+    
     # Levels and repetitions
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
     comm_limits = [2, 3, 5, 12, 20]
-    
+    """
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
     comm_limits = [5, 10, 20, 50, 50]
@@ -97,13 +97,11 @@ def general_test():
     repetitions = [75, 50, 25, 10]
     comm_limits = [1, 5, 6, 10]
     """
-
     """
-    levels = 5
-    repetitions = [20, 10, 7, 5, 2]
-    comm_limits = [1, 1, 2, 4, 6]
+    levels = 3
+    repetitions = [4, 2, 1]
+    comm_limits = [1, 2, 4]
     """
-    
     
     MLMCprob = MLMC_Problem(Problem_Class, sampler, level_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
@@ -286,8 +284,8 @@ def convergence_check(res, limit):
 
 
 if __name__ == '__main__':
-    report_test()
-    #general_test()
+    #report_test()
+    general_test()
     #test_MC(1000, 10)
     #test_MC(1000, 40)
     #test_MC(1000, 80)

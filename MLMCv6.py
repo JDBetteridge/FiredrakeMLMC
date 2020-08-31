@@ -189,20 +189,20 @@ class MLMC_Problem:
         assert hasattr(problem_class, "solve") and callable(problem_class.solve), \
         ("The input probem class needs a solve() method - see MLMC_Problem docstring")
         
-        samp_sig = signature(sampler)
-        lvl_sig = signature(lvl_maker)
-        lvl_last_arg_default = list(lvl_sig.parameters.values())[-1].default
-        prob_solve_sig = signature(problem_class.solve)
+        samp_param = signature(sampler).parameters
+        lvl_param = signature(lvl_maker).parameters
+        lvl_last_arg_default = list(lvl_param.values())[-1].default
+        prob_solve_param = signature(problem_class.solve).parameters
         
-        assert len(samp_sig) == 2, \
+        assert len(samp_param) == 2, \
         ("The sampler input should be a function which takes two inputs")
         
-        assert len(lvl_sig) == 3 and lvl_last_arg_default == MPI.COMM_WORLD, \
+        assert len(lvl_param) == 3 and lvl_last_arg_default == MPI.COMM_WORLD, \
         ("The level maker input should be a function which takes 3 inputs, the third of \n"
         "which defaults to MPI.COMM_WORLD")
         
-        assert len(prob_solve_sig) == 1, \
-        ("The solve method of the input problem class should take no arguments")
+        assert len(prob_solve_param) == 2, \
+        ("The solve method of the input problem class should take one argument")
 
     def set_comms(self, comms, did_calc, init_comm):
         self._comms = comms
