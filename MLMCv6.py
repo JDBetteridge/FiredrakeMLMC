@@ -238,12 +238,9 @@ class MLMC_Problem:
         else:
             self._level_list[level] = avg
 
-
-        #print(self._level_list)
-
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
-        #print(self._level_list)
+        
         if self._comms is not None :
             self._initial_comm.Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE], 
             [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
@@ -254,7 +251,6 @@ class MLMC_Problem:
 
             logging.warning(calculations_made)
             self._level_list = self._result/ calculations_made
-            #self._result = sum(self._result/ calculations_made)
         
         self._result = sum(self._level_list)
         

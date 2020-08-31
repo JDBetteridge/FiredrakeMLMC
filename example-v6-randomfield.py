@@ -21,8 +21,6 @@ def sampler(lvl_f, lvl_c):
         samp_c = Function(lvl_c)
         inject(samp_f, samp_c)
 
-    #print("samp time: {}".format(time.time() - start))
-
     return samp_f, samp_c
 
 
@@ -51,10 +49,8 @@ class Problem_Class:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        #print(self._V.mesh())
         self._sample.assign(sample)
         self._vs.solve()
-        #print(self._V.mesh())
         return assemble(dot(self._qh, self._qh) * dx)
     
     # HELPER
