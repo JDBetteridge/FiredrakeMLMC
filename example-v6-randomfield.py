@@ -12,12 +12,12 @@ from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 
-def samp(lvl_f, lvl_c):
+def sampler(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=3, )
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=3)
 
-    if lvl_c != None:
+    if lvl_c is not None:
         samp_c = Function(lvl_c)
         inject(samp_f, samp_c)
 
@@ -26,7 +26,7 @@ def samp(lvl_f, lvl_c):
     return samp_f, samp_c
 
 
-def lvl_maker(level_f, level_c, comm):
+def level_maker(level_f, level_c, comm=MPI.COMM_WORLD):
     coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
@@ -36,7 +36,7 @@ def lvl_maker(level_f, level_c, comm):
         FunctionSpace(hierarchy[level_c], "CG", 2)
 
 
-class problemClass:
+class Problem_Class:
     """
     Needs to take an integer initialisation argument to define the level (0 - L)
     Needs to have a .solve() method which takes a sample as an argument and returns
@@ -78,38 +78,38 @@ def general_test():
     # Levels and repetitions
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
-    comm_limits = [[1, 2], [1, 3], [1, 5], [1, 12], [1, 20]]
+    comm_limits = [2, 3, 5, 12, 20]
     
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
-    comm_limits = [[1, 5], [1, 10], [1, 20], [1, 50], [1, 50]]
+    comm_limits = [5, 10, 20, 50, 50]
     
     levels = 4
     repetitions = [500, 300, 250, 200]
-    comm_limits = [[1, 7], [1, 25], [1, 40], [1, 65]]
+    comm_limits = [7, 25, 40, 65]
     """
     """
     levels = 5
     repetitions = [75, 50, 25, 10, 5]
-    comm_limits = [[0.5, 2], [0.5, 4], [1, 7], [1, 9], [1, 10]]
+    comm_limits = [2, 4, 7, 9, 10]
        
     levels = 4
     repetitions = [75, 50, 25, 10]
-    comm_limits = [[0.5, 1], [0.5, 3], [1, 6], [1, 8]]
+    comm_limits = [1, 3, 6, 8]
 
     levels = 4
     repetitions = [75, 50, 25, 10]
-    comm_limits = [[0.5, 1], [0.5, 5], [1, 6], [1, 10]]
+    comm_limits = [1, 5, 6, 10]
     """
 
     """
     levels = 5
     repetitions = [20, 10, 7, 5, 2]
-    comm_limits = [[0.5, 1], [0.5, 1], [1, 2], [1, 4], [1, 6]]
+    comm_limits = [1, 1, 2, 4, 6]
     """
     
     
-    MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
+    MLMCprob = MLMC_Problem(Problem_Class, sampler, level_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
     estimate, lvls = MLMCsolv.solve()
     if MPI.COMM_WORLD.Get_rank() == 0:
@@ -136,7 +136,21 @@ def test_MC(reps, mesh_dim):
     
     #plt.show()
 
+def report_test():
+    L_1, L_0 = level_maker(1, 0) # Create level objects
+    P_0 = Problem_Class(L_0) # Initialise problem on level 0
+    P_1 = Problem_Class(L_1) # Initialise problem on level 1
 
+    Y = 0 # Level 1 result
+    N1 = 100 # Samples on level 1
+
+    # Generate and solve on N1 random samples
+    for n in range(N1):
+        sample_1, sample_0 = sampler(L_1, L_0)
+        Y += (P_1.solve(sample_1) - P_0.solve(sample_0))
+
+    Y /= N1
+    print(Y)
 
 def croci_convergence():
     with open("MLMC_100r_5lvl_20dim.json") as handle:
@@ -276,7 +290,8 @@ def convergence_check(res, limit):
 
 
 if __name__ == '__main__':
-    general_test()
+    report_test()
+    #general_test()
     #test_MC(1000, 10)
     #test_MC(1000, 40)
     #test_MC(1000, 80)

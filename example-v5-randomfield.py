@@ -14,13 +14,13 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 def samp(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=3, )
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=3)
 
     if lvl_c != None:
         samp_c = Function(lvl_c)
         inject(samp_f, samp_c)
 
-    print("samp time: {}".format(time.time() - start))
+    #print("samp time: {}".format(time.time() - start))
 
     return samp_f, samp_c
 
@@ -75,7 +75,7 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [10, 5, 2]
+    repetitions = [4, 2,1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()
