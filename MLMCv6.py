@@ -288,10 +288,12 @@ class P_level:
 
         # Generate sample and solve problems with sample
         sample_f, sample_c = self.sampler(self._lvl_f, self._lvl_c)
+        print(sample_f)
         e_f = self.problem_f.solve(sample_f)
 
         if self._lvl_c is not None:  
             e_c = self.problem_c.solve(sample_c)
+            print(e_f, e_c)
             self._value +=  e_f - e_c
         else:
             self._value += e_f

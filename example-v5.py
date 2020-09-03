@@ -2,23 +2,27 @@ from firedrake import *
 from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
+from mpi4py import MPI
+import time
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem
+from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
 rg = RandomGenerator(MT19937(12345))
 
 def samp(lvl_f, lvl_c):
     ans = 20*rg.random_sample()
+    #print(ans)
     return ans, ans
 
 
-def lvl_maker(level_f, level_c):
-    coarse_mesh = UnitSquareMesh(10, 10)
+def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
+    coarse_mesh = UnitSquareMesh(20, 20)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return hierarchy[level_f], None
+        return FunctionSpace(hierarchy[level_f], "CG", 2), None
     else:
-        return hierarchy[level_f], hierarchy[level_c]
+        return FunctionSpace(hierarchy[level_f], "CG", 2), \
+        FunctionSpace(hierarchy[level_c], "CG", 2)
 
 
 class problemClass:
@@ -29,7 +33,8 @@ class problemClass:
     """
     def __init__(self, level_obj):
         
-        self._V = FunctionSpace(level_obj, "Lagrange", 4)
+        self._V = level_obj
+        print(self._V.mesh().num_faces())
         self._sample = Constant(0)
         self._uh = Function(self._V)
         self._vs = self.initialise_problem()
@@ -37,7 +42,7 @@ class problemClass:
     def solve(self, sample):
         self._sample.assign(Constant(sample))
         self._vs.solve()
-        return assemble(Constant(0.5) * dot(self._uh, self._uh) * dx)
+        return assemble(dot(self._uh, self._uh) * dx)
     
     # HELPER
     def initialise_problem(self):
@@ -59,60 +64,118 @@ class problemClass:
 def general_test():
     # Levels and repetitions
     levels = 3
-    repetitions = [100, 50, 10]
+    repetitions = [10, 5, 2]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
+    s = time.time()
     estimate = MLMCsolv.solve()
     print(estimate)
-    evaluate_result(estimate[0])
+    print("Total time: {}".format(time.time()-s))
+    evaluate_result(estimate)
 
 
 def evaluate_result(result):
-    with open("10_int.json") as handle:
-        e_10 = json.load(handle)
+    lvl_res = result[1]
+    result = result[0]
+    with open("Gaussian_1000r_20dim.json") as handle:
+        e_20 = json.load(handle)
     
-    with open("100_int.json") as handle:
-        e_100 = json.load(handle)
-    
-    with open("1000_int.json") as handle:
-        e_1000 = json.load(handle)
-    
-    with open("10000_int.json") as handle:
-        e_10000 = json.load(handle)
-    
-    with open("20000_int.json") as handle:
-        e_20000 = json.load(handle)
+    with open("Gaussian_1000r_40dim.json") as handle:
+        e_40 = json.load(handle)
 
-    d_10 = result - e_10
-    d_100 = result - e_100
-    d_1000 = result - e_1000
-    d_10000 = result - e_10000
-    d_20000 = result - e_20000
+    with open("Gaussian_1000r_80dim.json") as handle:
+        e_80 = json.load(handle) 
+    
+    with open("Gaussian_1000r_160dim.json") as handle:
+        e_160 = json.load(handle)
 
-    print("% difference from 10 sample MC: ",(d_10*100)/result)
-    print("% difference from 100 sample MC: ",(d_100*100)/result)
-    print("% difference from 1000 sample MC: ",(d_1000*100)/result)
-    print("% difference from 10000 sample MC: ",(d_10000*100)/result)
-    print("% difference from 20000 sample MC: ",(d_20000*100)/result)
 
+    d_20 = result - sum(e_20)/len(e_20)
+    d_40 = result - sum(e_40)/len(e_40)
+    d_80 = result - sum(e_80)/len(e_80)
+    d_160 = result - sum(e_160)/len(e_160)
+
+    print("% difference from 1000 sample 20x20 MC: ",(d_20*100)/result)
+    print("% difference from 1000 sample 40x40 MC: ",(d_40*100)/result)
+    print("% difference from 1000 sample 80x80 MC: ",(d_80*100)/result)
+    print("% difference from 1000 sample 160x160 MC: ",(d_160*100)/result)
+
+    #croci_convergence(lvl_res)
     convergence_tests(result)
+
+def croci_convergence(level_res):
+    levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
+    fig, axes = plt.subplots()
+
+    a = axes.plot(levels[1:], level_res[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)') 
+    h2 = [0.03*i**2 for i in levels]
+
+    axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(1/n^2)$') 
+    
+    axes.set_yscale('log')
+    axes.set_xscale('log')
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_\ell\right\Vert^2_{L^2} - \left\Vert q_{\ell-1}\right\Vert^2_{L^2}\right]$', fontsize=16)
+    axes.set_xlabel(r'$1/n_\ell$', fontsize=16)
+    plt.tight_layout()
+    plt.style.use('classic')
+    plt.legend(loc='best', prop={'size': 13}, numpoints=1)
+
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
+    plt.show()
 
 def convergence_tests(param = None):
     """
     Function which compares result to 10,000 sample MC 
     """
-    with open("20000_list.json") as handle:
+    with open("Gaussian_1000r_160dim.json") as handle:
             results = json.load(handle)
     
     res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
     #print(res2[0], results[0])
     fig, axes = plt.subplots()
-    axes.plot([i for i in range(20000)], res2, 'r')
+    axes.plot([i for i in range(1000)], res2, 'r')
     if param != None:
         plt.axhline(y=param, color='b')
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.show()
 
+def test_MC(reps, mesh_dim):
+    mesh = UnitSquareMesh(mesh_dim, mesh_dim)
+    V = FunctionSpace(mesh, "CG", 2)
+
+    string = "Gaussian_{}r_{}dim".format(reps, mesh_dim)
+
+    results = do_MC(problemClass, reps, V, samp)
+    with open(string+'.json', 'w') as f:
+        json.dump(results, f)
+
+    res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
+    fig, axes = plt.subplots()
+    axes.plot([i for i in range(reps)], res2, 'r')
+    plt.show()
+
+def manual_test(samples):
+    # made for 17 samples
+    level0 = problemClass(FunctionSpace(UnitSquareMesh(20,20), "CG", 2))
+    level1 = problemClass(FunctionSpace(UnitSquareMesh(40,40), "CG", 2))
+    level2 = problemClass(FunctionSpace(UnitSquareMesh(80,80), "CG", 2))
+    level0_results = [level0.solve(samples[i]) for i in range(10)]
+    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range (10, 15)] 
+    level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (15, 17)]
+
+    L0 = sum(level0_results)/len(level0_results)
+    L1_sub = [i[0]-i[1] for i in level1_results]
+    L1 = sum(L1_sub)/len(L1_sub)
+    L2_sub = [i[0]-i[1] for i in level2_results]
+    L2 = sum(L2_sub)/len(L2_sub)
+    print(level2_results)
+    print(samples)
+    print((L0+L1+L2,[L0,L1,L2]))
 
 if __name__ == '__main__':
     general_test()
+    #test_MC(1000, 160)
+    rg = RandomGenerator(MT19937(12345))
+    ans = [rg.random_sample()*20 for i2 in range(17)]
+    manual_test(ans)

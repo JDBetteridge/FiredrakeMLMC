@@ -1,5 +1,6 @@
 import numpy as np
 from randomgen import RandomGenerator, MT19937
+from mpi4py import MPI
 
 from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
@@ -13,7 +14,7 @@ class binProblem:
         #print(ans)
         return ans
 
-def lvl_maker(level_f, level_c):
+def lvl_maker(level_f, level_c, comm = MPI.COMM_WORLD):
     if level_c < 0:
         return level_f, None
     else:
@@ -30,8 +31,8 @@ def samp(level, level2):
 
 def general_test():
     # Levels and repetitions
-    levels = 5
-    repetitions = [1000, 500, 250, 125, 60]
+    levels = 3
+    repetitions = [10, 5, 2]
     MLMCprob = MLMC_Problem(binProblem, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()

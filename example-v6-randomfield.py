@@ -70,11 +70,12 @@ class Problem_Class:
         return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
 def general_test():
-    
+    """
     # Levels and repetitions
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
     comm_limits = [2, 3, 5, 12, 20]
+    """
     """
     levels = 5
     repetitions = [500, 300, 250, 200, 100]
@@ -102,13 +103,22 @@ def general_test():
     repetitions = [4, 2, 1]
     comm_limits = [1, 2, 4]
     """
-    
+    """
     MLMCprob = MLMC_Problem(Problem_Class, sampler, level_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
     estimate, lvls = MLMCsolv.solve()
     if MPI.COMM_WORLD.Get_rank() == 0:
         print(lvls)
         print(estimate)
+    """
+    levels = 5
+    repetitions = [100, 100, 100, 100, 100]
+    MLMCprob = MLMC_Problem(Problem_Class, sampler, level_maker)
+    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
+    result = MLMCsolv.solve()
+    with open("MLMC_100r_5lvl_20dim_2nu.json", 'w') as f:
+        json.dump(results[1], f)
+
     
 
 

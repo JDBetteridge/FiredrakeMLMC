@@ -3,6 +3,7 @@ from randomgen import RandomGenerator, MT19937
 import json
 import matplotlib.pyplot as plt
 from matern import matern 
+from mpi4py import MPI
 
 import time
 import math
@@ -25,8 +26,8 @@ def samp(lvl_f, lvl_c):
     return samp_f, samp_c
 
 
-def lvl_maker(level_f, level_c):
-    coarse_mesh = UnitSquareMesh(20, 20)
+def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
+    coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
         return FunctionSpace(hierarchy[level_f], "CG", 2), None
@@ -74,11 +75,13 @@ class problemClass:
 
 def general_test():
     # Levels and repetitions
-    levels = 3
-    repetitions = [4, 2,1]
+    s = time.time()
+    levels = 7
+    repetitions = [1, 1,1,1,1,1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()
+    print(time.time() - s)
     print(estimate)
     print(lvls)
     #with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
