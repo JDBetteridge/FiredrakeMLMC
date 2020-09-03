@@ -15,7 +15,7 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 def sampler(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=3)
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.1, smoothness=1)
 
     if lvl_c is not None:
         samp_c = Function(lvl_c)
@@ -113,7 +113,7 @@ def general_test():
     
     levels = 5
     repetitions = [1, 1, 1, 1, 1]
-    comm_limits = [1, 1, 1, 1, 1]
+    comm_limits = [1, 1, 1, 1, 2]
     MLMCprob = MLMC_Problem(Problem_Class, sampler, level_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, MPI.COMM_WORLD, comm_limits)
     result = MLMCsolv.solve()
