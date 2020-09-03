@@ -3,7 +3,7 @@ import numpy as np
 import time
 import logging
 from inspect import signature
-
+from firedrake import *
 
 class MLMC_Solver:
 
@@ -142,9 +142,9 @@ class MLMC_Solver:
 
 
     def initialiseLogger(self):
-        logger = logging.getLogger("MLMC-logger")
+        logger = logging.logging.getLogger("MLMC-logger")
         logger.setLevel(logging.INFO)
-        file_handler = logging.StreamHandler()
+        file_handler = logging.logging.StreamHandler()
         logger.addHandler(file_handler)
         return logger
         
@@ -271,6 +271,7 @@ class P_level:
         if self._lvl_c is not None:
             self.problem_c = problem_class(self._lvl_c)
 
+        self.prob_class = problem_class
 
     def get_average(self):
         if self._value is None:
@@ -289,13 +290,20 @@ class P_level:
         # Generate sample and solve problems with sample
         sample_f, sample_c = self.sampler(self._lvl_f, self._lvl_c)
         print(sample_f)
+        print(self.problem_f._V.mesh().num_faces())
         e_f = self.problem_f.solve(sample_f)
 
         if self._lvl_c is not None:  
             e_c = self.problem_c.solve(sample_c)
+            level1 = self.prob_class(FunctionSpace(UnitSquareMesh(40,40), "CG", 2))
+            level0 = self.prob_class(FunctionSpace(UnitSquareMesh(20,20), "CG", 2))
+            print(sample_f, sample_c)
+            print(level1.solve(sample_f), level0.solve(sample_c))
             print(e_f, e_c)
             self._value +=  e_f - e_c
         else:
+            print("**")
+            print(e_f)
             self._value += e_f
         
         self._sample_counter += 1
