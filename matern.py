@@ -4,7 +4,7 @@ from math import ceil
 from scipy.special import gamma
 from firedrake.petsc import PETSc
 from firedrake.assemble import get_vector, vector_arg
-from mpi4py import MPI
+
 import ufl
 import numpy as np
 
@@ -161,8 +161,3 @@ void apply_cholesky(double *__restrict__ z,
 
     return wnoise
 
-if __name__ == "__main__":
-    mesh = UnitSquareMesh(20,20, comm=MPI.COMM_WORLD)
-    hierarchy = MeshHierarchy(mesh, 4, 1)
-    V = FunctionSpace(hierarchy[4], "CG", 2)
-    matern(V, mean=1, variance=0.2, correlation_length=0.1, smoothness=1)
