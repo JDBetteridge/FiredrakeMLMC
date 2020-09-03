@@ -44,5 +44,5 @@ l1 = problemClass(V1)
 rg = RandomGenerator(MT19937(12345))
 ans = [20*rg.random_sample() for i2 in range(2)]
 
-print(l0.solve(ans[1]))
-print(l1.solve(ans[1]), l0.solve(ans[1]))
+print(l0.solve(ans[0]))
+print(l0.solve(ans[1]), l0.solve(ans[1]))
