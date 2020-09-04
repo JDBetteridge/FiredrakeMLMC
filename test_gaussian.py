@@ -1,7 +1,10 @@
 from firedrake import *
 from randomgen import RandomGenerator, MT19937
 import json
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+
+import matplotlib.pylab as plt
+from matplotlib import rc
 from mpi4py import MPI
 import time
 
@@ -64,8 +67,8 @@ class problemClass:
 
 def general_test():
     # Levels and repetitions
-    levels = 3
-    repetitions = [1, 1, 1]
+    levels = 4
+    repetitions = [1000, 100, 50, 10]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     s = time.time()
@@ -102,7 +105,7 @@ def evaluate_result(result):
     print("% difference from 1000 sample 160x160 MC: ",(d_160*100)/result)
 
     #croci_convergence(lvl_res)
-    convergence_tests(result)
+    convergence_tests(lvl_res)
 
 def croci_convergence(level_res):
     levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
@@ -129,16 +132,60 @@ def convergence_tests(param = None):
     """
     Function which compares result to 10,000 sample MC 
     """
-    with open("Gaussian_1000r_160dim.json") as handle:
-            results = json.load(handle)
+    with open("Gaussian_1000r_20dim.json") as handle:
+        e_20 = json.load(handle)
     
-    res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
+    with open("Gaussian_1000r_40dim.json") as handle:
+        e_40 = json.load(handle)
+
+    with open("Gaussian_1000r_80dim.json") as handle:
+        e_80 = json.load(handle) 
+    
+    with open("Gaussian_1000r_160dim.json") as handle:
+        e_160 = json.load(handle)
+    
+
+    res20 = [sum(e_20[:i+1])/(i+1) for i in range(len(e_20))]
+    res40 = [sum(e_40[:i+1])/(i+1) for i in range(len(e_40))]
+    res80 = [sum(e_80[:i+1])/(i+1) for i in range(len(e_80))]
+    res160 = [sum(e_160[:i+1])/(i+1) for i in range(len(e_160))]
+    show_results(res20, res40, res80, res160, param)
+    """
     #print(res2[0], results[0])
     fig, axes = plt.subplots()
     axes.plot([i for i in range(1000)], res2, 'r')
     if param != None:
-        plt.axhline(y=param, color='b')
+        sums = [sum(param[:(i+1)]) for i in range(len(param))]
+        plt.axhline(y=sums[0], color='b')
+        plt.axhline(y=sums[1], color='g')
+        plt.axhline(y=sums[2], color='gold')
+        plt.axhline(y=sums[3], color='k')
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
+    plt.show()
+    """
+
+def show_results(res1, res2, res3, res4, param):
+    
+    fig, axes = plt.subplots()
+    x2 = [i for i in range(1000)]
+    #axes.plot(x2, res1, 'gold', label="20x20") 
+    #axes.plot(x2, res2, 'orange', label="40x40") 
+    #axes.plot(x2, res3, 'r', label="80x80")
+    axes.plot(x2, res4, 'k', label=r"$160\times160$")
+    if param != None:
+        plt.axhline(y=param[0], linestyle='--' ,color='k', label=r"$\mathrm{\mathbb{E}} \left[\Vert u\Vert^2_{L^2} \right]_{MLMC}$")
+    #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
+    plt.style.use('classic')
+    axes.legend(loc="best", prop={'size': 13})
+    
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\Vert u \Vert^2_{L^2} \right]$', fontsize=14)
+    axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
+    
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
+    
+    plt.tight_layout()
     plt.show()
 
 def test_MC(reps, mesh_dim):
@@ -178,7 +225,7 @@ def manual_test(samples):
 
 if __name__ == '__main__':
     general_test()
-    #test_MC(1000, 160)
-    rg = RandomGenerator(MT19937(12345))
-    ans = [20*rg.random_sample() for i2 in range(3)]
-    manual_test(ans)
+    #test_MC(1000,80)
+    #rg = RandomGenerator(MT19937(12345))
+    #ans = [20*rg.random_sample() for i2 in range(3)]
+    #manual_test(ans)

@@ -1,6 +1,7 @@
 import numpy as np
 from randomgen import RandomGenerator, MT19937
 from mpi4py import MPI
+import matplotlib.pyplot as plt
 
 from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
 
@@ -11,7 +12,6 @@ class binProblem:
     def solve(self, sample):
         solution = np.histogram(sample, self._bins, (0,1000))
         ans = sum(i>0 for i in solution[0])
-        #print(ans)
         return ans
 
 def lvl_maker(level_f, level_c, comm = MPI.COMM_WORLD):
@@ -23,7 +23,6 @@ def lvl_maker(level_f, level_c, comm = MPI.COMM_WORLD):
 rg = RandomGenerator(MT19937(12345))
 def samp(level, level2):
     ans = [rg.random_sample()*1000 for i in range(10)]
-    #print(ans)
     if level2 == None:
         return ans, None
     return ans, ans
@@ -31,8 +30,8 @@ def samp(level, level2):
 
 def general_test():
     # Levels and repetitions
-    levels = 3
-    repetitions = [10, 5, 2]
+    levels = 4
+    repetitions = [1000, 500, 1000, 1000]
     MLMCprob = MLMC_Problem(binProblem, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()
@@ -43,9 +42,9 @@ def manual_test(samples):
     level0 = binProblem(0)
     level1 = binProblem(1)
     level2 = binProblem(2)
-    level0_results = [level0.solve(samples[i]) for i in range(10)]
-    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range (10, 15)] 
-    level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (15, 17)]
+    level0_results = [level0.solve(samples[i]) for i in range(100)]
+    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range (100, 150)] 
+    level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (150, 160)]
 
     L0 = sum(level0_results)/len(level0_results)
     L1_sub = [i[0]-i[1] for i in level1_results]
@@ -56,14 +55,25 @@ def manual_test(samples):
     print(L0+L1+L2)
     #result is 10.8
 
+def test_MC(reps, level):
+    string = "BallDrop_{}r_{}lvl".format(reps, level)
 
+    results = do_MC(binProblem, reps, level, samp)
+    #with open(string+'.json', 'w') as f:
+        #json.dump(results, f)
+
+    res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
+    fig, axes = plt.subplots()
+    axes.plot([i for i in range(reps)], res2, 'r')
+    plt.show()
 
 
 if __name__ == '__main__':
-    general_test()
+    #general_test()
+    test_MC(1000, 3)
     #[rg.random_sample()*1000 for i in range(5)]
     #rg = RandomGenerator(MT19937(12345))
-    #ans = [[rg.random_sample()*1000 for i in range(10)] for i2 in range(17)]
+    #ans = [[rg.random_sample()*1000 for i in range(10)] for i2 in range(160)]
     #manual_test(ans)
     
     

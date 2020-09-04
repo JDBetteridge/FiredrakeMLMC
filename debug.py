@@ -37,15 +37,6 @@ mesh1 = UnitSquareMesh(20,20)
 hier = MeshHierarchy(mesh1, 1, 1)
 mesh1 = hier[1]
 
-fig, axes = plt.subplots()
-triplot(mesh0, axes=axes)
-axes.legend()
-#plt.show()
-
-fig, axes = plt.subplots()
-triplot(mesh1, axes=axes)
-axes.legend()
-plt.show()
 
 V0 = FunctionSpace(mesh0, "CG", 2)
 V1 = FunctionSpace(mesh1, "CG", 2)
