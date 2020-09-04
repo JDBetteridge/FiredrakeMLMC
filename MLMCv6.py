@@ -262,7 +262,7 @@ class P_level:
         # Assignments
         self._lvl_f = lvl_f
         self._lvl_c = lvl_c
-
+        
         self.sampler = sampler
         self._value = None
         self._sample_counter = 0

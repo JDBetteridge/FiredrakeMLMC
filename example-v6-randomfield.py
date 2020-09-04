@@ -49,6 +49,7 @@ class Problem_Class:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
+        self._qh.assign(0)
         self._sample.assign(sample)
         self._vs.solve()
         return assemble(dot(self._qh, self._qh) * dx)
@@ -161,7 +162,7 @@ def report_test():
     print(Y)
 
 def croci_convergence():
-    with open("MLMC_100r_5lvl_20dim.json") as handle:
+    with open("MLMC_100r_5lvl_20dim_3nu.json") as handle:
         level_res = json.load(handle) 
     print(level_res)
     levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
@@ -299,10 +300,10 @@ def convergence_check(res, limit):
 
 if __name__ == '__main__':
     #report_test()
-    general_test()
+    #general_test()
     #test_MC(1000, 10)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 320)
     #convergence_tests()
-    #croci_convergence()
+    croci_convergence()

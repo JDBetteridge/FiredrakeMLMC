@@ -1,11 +1,8 @@
 from firedrake import *
+import matplotlib.pyplot as plt
 
 class problemClass:
-    """
-    Needs to take an integer initialisation argument to define the level (0 - L)
-    Needs to have a .solve() method which takes a sample as an argument and returns
-    a scalar solution
-    """
+
     def __init__(self, level_obj):
         
         self._V = level_obj
@@ -15,7 +12,8 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        self._sample.assign(Constant(sample))
+        self._uh.assign(0) 
+        self._sample.assign(sample)
         self._vs.solve()
         return assemble(dot(self._uh, self._uh) * dx)
     
@@ -34,15 +32,29 @@ class problemClass:
         vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
         return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
 
-mesh0 = UnitSquareMesh(20,20)
-mesh1 = UnitSquareMesh(40,40)
+mesh0 = UnitSquareMesh(40,40)
+mesh1 = UnitSquareMesh(20,20)
+hier = MeshHierarchy(mesh1, 1, 1)
+mesh1 = hier[1]
+
+fig, axes = plt.subplots()
+triplot(mesh0, axes=axes)
+axes.legend()
+#plt.show()
+
+fig, axes = plt.subplots()
+triplot(mesh1, axes=axes)
+axes.legend()
+plt.show()
+
 V0 = FunctionSpace(mesh0, "CG", 2)
 V1 = FunctionSpace(mesh1, "CG", 2)
+
 l0 = problemClass(V0)
 l1 = problemClass(V1)
 
 rg = RandomGenerator(MT19937(12345))
-ans = [20*rg.random_sample() for i2 in range(2)]
+ans = [Constant(20*rg.random_sample()) for i2 in range(2)]
 
-print(l0.solve(ans[0]))
-print(l0.solve(ans[1]), l0.solve(ans[1]))
+print([l0.solve(ans[0]) for i in range(10)])
+print([l1.solve(ans[0]) for i in range(10)])

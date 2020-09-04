@@ -16,13 +16,13 @@ def samp(lvl_f, lvl_c):
 
 
 def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
-    coarse_mesh = UnitSquareMesh(20, 20)
-    fine_mesh = UnitSquareMesh(40, 40)
+    coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
+    hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return FunctionSpace(coarse_mesh, "CG", 2), None
+        return FunctionSpace(hierarchy[level_f], "CG", 2), None
     else:
-        return FunctionSpace(fine_mesh, "CG", 2), \
-        FunctionSpace(coarse_mesh, "CG", 2)
+        return FunctionSpace(hierarchy[level_f], "CG", 2), \
+        FunctionSpace(hierarchy[level_c], "CG", 2)
 
 
 class problemClass:
@@ -40,6 +40,7 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
+        self._uh.assign(0)
         self._sample.assign(Constant(sample))
         self._vs.solve()
         return assemble(dot(self._uh, self._uh) * dx)
@@ -63,8 +64,8 @@ class problemClass:
 
 def general_test():
     # Levels and repetitions
-    levels = 2
-    repetitions = [1, 1]
+    levels = 3
+    repetitions = [1, 1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     s = time.time()
@@ -157,26 +158,27 @@ def test_MC(reps, mesh_dim):
 
 def manual_test(samples):
     # made for 17 samples
-    level0 = problemClass(FunctionSpace(UnitSquareMesh(20,20), "CG", 2))
-    level1 = problemClass(FunctionSpace(UnitSquareMesh(40,40), "CG", 2))
-    #level2 = problemClass(FunctionSpace(UnitSquareMesh(80,80), "CG", 2))
-    level0_results = [level0.solve(samples[0])]
-    level1_results = [[level1.solve(samples[1]), level0.solve(samples[1])]] 
-    #level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (15, 17)]
+    coarse = UnitSquareMesh(20,20)
+    hierarchy = MeshHierarchy(coarse, 2, 1)
+    level0 = problemClass(FunctionSpace(hierarchy[0], "CG", 2))
+    level1 = problemClass(FunctionSpace(hierarchy[1], "CG", 2))
+    level2 = problemClass(FunctionSpace(hierarchy[2], "CG", 2))
+
+    level0_results = [level0.solve(samples[i]) for i in range(1)]
+    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range(1, 2)] 
+    level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (2, 3)]
 
     L0 = sum(level0_results)/len(level0_results)
     L1_sub = [i[0]-i[1] for i in level1_results]
     L1 = sum(L1_sub)/len(L1_sub)
-    #L2_sub = [i[0]-i[1] for i in level2_results]
-    #L2 = sum(L2_sub)/len(L2_sub)
-    #print(level2_results)
-    print(samples)
-    print(level1_results)
-    print((L0+L1,[L0,L1]))
+    L2_sub = [i[0]-i[1] for i in level2_results]
+    L2 = sum(L2_sub)/len(L2_sub)
+
+    print((L0+L1+L2,[L0,L1,L2]))
 
 if __name__ == '__main__':
     general_test()
     #test_MC(1000, 160)
     rg = RandomGenerator(MT19937(12345))
-    ans = [20*rg.random_sample() for i2 in range(2)]
+    ans = [20*rg.random_sample() for i2 in range(3)]
     manual_test(ans)
