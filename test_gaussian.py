@@ -150,6 +150,8 @@ def convergence_tests(param = None):
     res80 = [sum(e_80[:i+1])/(i+1) for i in range(len(e_80))]
     res160 = [sum(e_160[:i+1])/(i+1) for i in range(len(e_160))]
     show_results(res20, res40, res80, res160, param)
+    #limit = res160[-1]
+    #convergence(res20, res40, res80, res160, limit)
     """
     #print(res2[0], results[0])
     fig, axes = plt.subplots()
@@ -164,6 +166,45 @@ def convergence_tests(param = None):
     plt.show()
     """
 
+def convergence(res, res2, res3, res4, limit):
+
+    logN, error = convergence_check(res, limit)
+    logN2, error2 = convergence_check(res2, limit)
+    logN3, error3 = convergence_check(res3, limit)
+    logN4, error4 = convergence_check(res4, limit)
+
+    halfx = [(error[0])*i**(-0.5) for i in logN]
+    halfx2 = [(error4[0]*0.1)*i**(-0.5) for i in logN]
+
+    fig, axes = plt.subplots()
+
+    axes.plot(logN, error, 'gold', label=r'20x20') 
+    #axes.plot(logN3, error3, 'orange', label=r'40x40')
+    #axes.plot(logN2, error2, 'r', label=r'80x80') 
+    #axes.plot(logN, error, 'brown', label=r'160x160') 
+    axes.plot(logN4, error4, 'k', label=r'160x160') 
+    
+
+    axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
+    axes.plot(logN, halfx2, '--', color='k') 
+    
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_L \right\Vert^2_{L^2} \right] - \mathrm{\mathbb{E}} \left[\left\Vert q_\ell \right\Vert^2_{L^2} \right]$', fontsize=14)
+    axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
+    axes.set_yscale('log')
+    axes.set_xscale('log')
+    plt.style.use('classic')
+    plt.legend(loc="best", prop={'size': 10})
+    axes.tick_params(axis="y", direction='in', which='both')
+    axes.tick_params(axis="x", direction='in', which='both')
+
+    plt.tight_layout()
+    plt.show()
+
+def convergence_check(res, limit):
+    error = [abs(limit-element) for element in res]
+    logN = [i+1 for i in range(len(res))]
+    return logN, error
+
 def show_results(res1, res2, res3, res4, param):
     
     fig, axes = plt.subplots()
@@ -171,7 +212,7 @@ def show_results(res1, res2, res3, res4, param):
     #axes.plot(x2, res1, 'gold', label="20x20") 
     #axes.plot(x2, res2, 'orange', label="40x40") 
     #axes.plot(x2, res3, 'r', label="80x80")
-    axes.plot(x2, res4, 'k', label=r"$160\times160$")
+    axes.plot(x2, res4, 'k', label=r"$\ell = 3 \; (160\times160)$")
     if param != None:
         plt.axhline(y=param[0], linestyle='--' ,color='k', label=r"$\mathrm{\mathbb{E}} \left[\Vert u\Vert^2_{L^2} \right]_{MLMC}$")
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
@@ -229,3 +270,4 @@ if __name__ == '__main__':
     #rg = RandomGenerator(MT19937(12345))
     #ans = [20*rg.random_sample() for i2 in range(3)]
     #manual_test(ans)
+    #convergence_tests()

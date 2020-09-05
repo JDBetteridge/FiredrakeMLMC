@@ -73,7 +73,7 @@ class problemClass:
         
         return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
-def general_test():
+def general_test_para():
     # Levels and repetitions
     s = time.time()
     levels = 5
@@ -90,6 +90,19 @@ def general_test():
             json.dump(list(lvls), f)
         #evaluate_result(estimate)
 
+def general_test_serial():
+    # Levels and repetitions
+    s = time.time()
+    levels = 3
+    repetitions = [100, 100,100]
+    MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
+    MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
+    estimate, lvls = MLMCsolv.solve()
+    print("Total Time Taken: ", time.time() - s)
+    print(estimate)
+    print(lvls)
+   
+    #evaluate_result(estimate)
 
 
 def test_MC(reps, mesh_dim):
@@ -112,7 +125,7 @@ def test_MC(reps, mesh_dim):
 
 
 def croci_convergence():
-    with open("MLMC_100r_5lvl_20dim.json") as handle:
+    with open("MLMC_100r_5lvl_20dim_10nu.json") as handle:
         level_res = json.load(handle) 
     print(level_res)
     levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
@@ -152,19 +165,19 @@ def convergence_tests(param = None):
 
     # Function which compares result to 10,000 sample MC 
     
-    with open("randomfieldMC_1000r_160dim.json") as handle:
+    with open("Old_Files/randomfieldMC_1000r_160dim.json") as handle:
             results1 = json.load(handle)
     
-    with open("randomfieldMC_1000r_320dim.json") as handle:
+    with open("Old_Files/randomfieldMC_1000r_320dim.json") as handle:
             results2 = json.load(handle)
     
-    with open("randomfieldMC_1000r_20dim.json") as handle:
+    with open("Old_Files/randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
     
-    with open("randomfieldMC_1000r_40dim.json") as handle:
+    with open("Old_Files/randomfieldMC_1000r_40dim.json") as handle:
             results4 = json.load(handle)
 
-    with open("randomfieldMC_1000r_80dim.json") as handle:
+    with open("Old_Files/randomfieldMC_1000r_80dim.json") as handle:
             results5 = json.load(handle)
     
     
@@ -218,22 +231,22 @@ def convergence(res, res2, res3, res4, res5, limit):
 
     fig, axes = plt.subplots()
 
-    axes.plot(logN4, error4, 'gold', label=r'20x20') 
+    axes.plot(logN4, error4, 'gold', label=r'$\ell = 0 \; (20\times20)$') 
     #axes.plot(logN3, error3, 'orange', label=r'40x40')
     #axes.plot(logN2, error2, 'r', label=r'80x80') 
     #axes.plot(logN, error, 'brown', label=r'160x160') 
-    axes.plot(logN5, error5, 'k', label=r'320x320') 
+    axes.plot(logN5, error5, 'k', label=r'$\ell = 4 \; (320\times320)$') 
     
 
     axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
     axes.plot(logN, halfx2, '--', color='k') 
     
-    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_L \right\Vert^2_{L^2} \right] - \mathrm{\mathbb{E}} \left[\left\Vert q_\ell \right\Vert^2_{L^2} \right]$', fontsize=14)
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\Vert q_L \Vert^2_{L^2} \right] - \mathrm{\mathbb{E}} \left[\Vert q_\ell \Vert^2_{L^2} \right]$', fontsize=14)
     axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
     axes.set_yscale('log')
     axes.set_xscale('log')
     plt.style.use('classic')
-    plt.legend(loc="best", prop={'size': 10})
+    plt.legend(loc="best", prop={'size': 13})
     axes.tick_params(axis="y", direction='in', which='both')
     axes.tick_params(axis="x", direction='in', which='both')
 
@@ -246,13 +259,40 @@ def convergence_check(res, limit):
     return logN, error
 
 
+def matern_tests():
+    mesh = UnitSquareMesh(20, 20)
+    hier = MeshHierarchy(mesh, 5, 1)
+    Vs = [FunctionSpace(i, "CG", 2) for i in hier]
+
+    samp_f = matern(Vs[5], mean=1, variance=10, correlation_length=0.001, smoothness=0.001)
+    samp_c = Function(Vs[4])
+    inject(samp_f, samp_c)
+    l_f = problemClass(Vs[5])
+    l_c = problemClass(Vs[4])
+    res_f = l_f.solve(samp_f)
+    res_c = l_c.solve(samp_c)
+
+    fig, axes = plt.subplots()
+    collection = tripcolor(samp_f, axes=axes, cmap='coolwarm')
+    fig.colorbar(collection)
+
+    fig, axes = plt.subplots()
+    collection = tripcolor(samp_c, axes=axes, cmap='coolwarm')
+    fig.colorbar(collection)
+    print(res_f - res_c)
+    plt.show()
 
 
 if __name__ == '__main__':
-    general_test()
+    #general_test_serial()
     #test_MC(1000, 10)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 320)
     #convergence_tests()
     #croci_convergence()
+    #matern_tests()
+    with open("MLMC_100r_5lvl_20dim_1nu.json") as handle:
+        level_res = json.load(handle) 
+    res = sum(level_res)
+    convergence_tests(res)
