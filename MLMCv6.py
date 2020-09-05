@@ -304,11 +304,11 @@ def do_MC(problem_class, repititions, level_ob, sampler):
     s = time.time()
     prob = problem_class(level_ob)
     for i in range(repititions):
-        print("Sample {} of {}".format(i+1, repititions))
+        logging.warning("Sample {} of {}".format(i+1, repititions))
         new_sample, x = sampler(level_ob, None)
 
         solutions.append(prob.solve(new_sample))
-    print("Total time: {}".format(time.time()-s))
+    logging.warning("Total time: {}".format(time.time()-s))
     return solutions
 
 

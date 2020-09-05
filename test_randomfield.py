@@ -15,7 +15,7 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 def samp(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=3)
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=1)
 
     if lvl_c != None:
         samp_c = Function(lvl_c)
@@ -52,6 +52,7 @@ class problemClass:
     
     def solve(self, sample):
         #print(self._V.mesh())
+        self._qh.assign(0)
         self._sample.assign(sample)
         self._vs.solve()
         #print(self._V.mesh())
@@ -76,9 +77,9 @@ class problemClass:
 def general_test_para():
     # Levels and repetitions
     s = time.time()
-    levels = 5
-    repetitions = [100, 100,100,100,100]
-    limits = [1, 1, 1, 1, 1]
+    levels = 4
+    repetitions = [100,100,100,50]
+    limits = [1, 1, 1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, comm=MPI.COMM_WORLD, comm_limits=limits)
     estimate, lvls = MLMCsolv.solve()
@@ -283,16 +284,14 @@ def matern_tests():
     plt.show()
 
 
+
 if __name__ == '__main__':
-    #general_test_serial()
-    #test_MC(1000, 10)
+    #general_test_para()
+    
+    test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 320)
     #convergence_tests()
     #croci_convergence()
     #matern_tests()
-    with open("MLMC_100r_5lvl_20dim_1nu.json") as handle:
-        level_res = json.load(handle) 
-    res = sum(level_res)
-    convergence_tests(res)
