@@ -314,7 +314,7 @@ if __name__ == '__main__':
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 160)
-    #test_MC(1000, 320)
+    test_MC(1000, 320)
     #convergence_tests()
     #croci_convergence()
     #matern_tests()
