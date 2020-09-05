@@ -98,9 +98,9 @@ class problemClass:
 def general_test_para():
     # Levels and repetitions
     s = time.time()
-    levels = 4
-    repetitions = [100,100,100,50]
-    limits = [1, 1, 1, 1]
+    levels = 5
+    repetitions = [1000,500,250,125, 50]
+    limits = [1, 1, 1, 1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, comm=MPI.COMM_WORLD, comm_limits=limits)
     estimate, lvls = MLMCsolv.solve()
@@ -108,7 +108,7 @@ def general_test_para():
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
         print(lvls)
-        with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
+        with open('MLMCtest_5lvl_1nu.json', 'w') as f:
             json.dump(list(lvls), f)
         #evaluate_result(estimate)
 
@@ -308,13 +308,13 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    #general_test_para()
+    general_test_para()
     
     #test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 160)
-    test_MC(1000, 320)
+    #test_MC(1000, 320)
     #convergence_tests()
     #croci_convergence()
     #matern_tests()
