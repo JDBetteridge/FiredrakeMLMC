@@ -43,9 +43,12 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
+        sample = 5
+        print(sample)
         self._uh.assign(0)
         self._sample.assign(Constant(sample))
         self._vs.solve()
+        print(assemble(dot(self._uh, self._uh) * dx))
         return assemble(dot(self._uh, self._uh) * dx)
     
     # HELPER
@@ -265,9 +268,10 @@ def manual_test(samples):
     print((L0+L1+L2,[L0,L1,L2]))
 
 if __name__ == '__main__':
-    general_test()
+    #general_test()
     #test_MC(1000,80)
     #rg = RandomGenerator(MT19937(12345))
     #ans = [20*rg.random_sample() for i2 in range(3)]
     #manual_test(ans)
     #convergence_tests()
+    test_MC(100, 20)

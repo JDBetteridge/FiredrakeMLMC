@@ -306,7 +306,7 @@ def do_MC(problem_class, repititions, level_ob, sampler):
     for i in range(repititions):
         logging.warning("Sample {} of {}".format(i+1, repititions))
         new_sample, x = sampler(level_ob, None)
-
+        
         solutions.append(prob.solve(new_sample))
     logging.warning("Total time: {}".format(time.time()-s))
     return solutions

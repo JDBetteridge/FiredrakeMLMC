@@ -51,21 +51,42 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
+        """
         #print(self._V.mesh())
         self._qh.assign(0)
         self._sample.assign(sample)
+        print(assemble(dot(self._sample, self._sample) * dx))
         self._vs.solve()
+        print(assemble(dot(self._qh, self._qh) * dx))
         #print(self._V.mesh())
         return assemble(dot(self._qh, self._qh) * dx)
+        """
+        
+        qh = Function(self._V)
+        q = TrialFunction(self._V)
+        p = TestFunction(self._V)
+
+        a = inner(exp(sample)*grad(q), grad(p))*dx
+        L = inner(Constant(1.0), p)*dx
+        bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
+
+        vp = LinearVariationalProblem(a, L, qh, bcs=bcs)
+        solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
+        vs = LinearVariationalSolver(vp, solver_parameters=solver_param) 
+        vs.solve()
+        #print(assemble(dot(qh, qh) * dx))
+        return assemble(dot(qh, qh) * dx)
+        
+
+
     
     # HELPER
     def initialise_problem(self):
 
         q = TrialFunction(self._V)
         p = TestFunction(self._V)
-        u = self._sample
 
-        a = inner(exp(u)*grad(q), grad(p))*dx
+        a = inner(exp(self._sample)*grad(q), grad(p))*dx
         L = inner(Constant(1.0), p)*dx
         bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
 
@@ -121,7 +142,7 @@ def test_MC(reps, mesh_dim):
     fig, axes = plt.subplots()
     axes.plot([i for i in range(reps)], res2, 'r')
     
-    #plt.show()
+    plt.show()
 
 
 
@@ -172,8 +193,9 @@ def convergence_tests(param = None):
     with open("Old_Files/randomfieldMC_1000r_320dim.json") as handle:
             results2 = json.load(handle)
     
-    with open("Old_Files/randomfieldMC_1000r_20dim.json") as handle:
+    with open("randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
+    print(results3)
     
     with open("Old_Files/randomfieldMC_1000r_40dim.json") as handle:
             results4 = json.load(handle)
@@ -288,7 +310,7 @@ def matern_tests():
 if __name__ == '__main__':
     #general_test_para()
     
-    test_MC(1000, 20)
+    test_MC(100, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 320)
