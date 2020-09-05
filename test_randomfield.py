@@ -186,21 +186,24 @@ def evaluate_result(result):
 def convergence_tests(param = None):
 
     # Function which compares result to 10,000 sample MC 
-    
-    with open("Old_Files/randomfieldMC_1000r_160dim.json") as handle:
+    with open("MLMCtest_5lvl_1nu.json") as handle:
+            param = json.load(handle)
+            param = sum(param)
+        
+    with open("randomfieldMC_1000r_160dim.json") as handle:
             results1 = json.load(handle)
     
-    with open("Old_Files/randomfieldMC_1000r_320dim.json") as handle:
+    with open("randomfieldMC_1000r_320dim.json") as handle:
             results2 = json.load(handle)
     
     with open("randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
     print(results3)
     
-    with open("Old_Files/randomfieldMC_1000r_40dim.json") as handle:
+    with open("randomfieldMC_1000r_40dim.json") as handle:
             results4 = json.load(handle)
 
-    with open("Old_Files/randomfieldMC_1000r_80dim.json") as handle:
+    with open("randomfieldMC_1000r_80dim.json") as handle:
             results5 = json.load(handle)
     
     
@@ -213,8 +216,8 @@ def convergence_tests(param = None):
 
     #print(res2[0], results[0])
     limit = res320[-1]
-    #show_results(res20, res40, res80, res160, res320, param)
-    convergence(res160, res80, res40, res20, res320, limit)
+    show_results(res20, res40, res80, res160, res320, param)
+    #convergence(res160, res80, res40, res20, res320, limit)
 
 def show_results(res1, res2, res3, res4, res5, param):
     fig, axes = plt.subplots()
@@ -308,14 +311,14 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    general_test_para()
+    #general_test_para()
     
     #test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 160)
     #test_MC(1000, 320)
-    #convergence_tests()
+    convergence_tests()
     #croci_convergence()
     #matern_tests()
     
