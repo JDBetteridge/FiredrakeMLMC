@@ -99,7 +99,7 @@ def general_test_para():
     # Levels and repetitions
     s = time.time()
     levels = 5
-    repetitions = [1000,500,250,125, 50]
+    repetitions = [1000, 750, 500, 300, 50]
     limits = [1, 1, 1, 1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, comm=MPI.COMM_WORLD, comm_limits=limits)
@@ -107,7 +107,7 @@ def general_test_para():
     if MPI.COMM_WORLD.Get_rank() == 0:
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
-        print(lvls)
+        print(list(lvls))
         with open('MLMCtest_5lvl_1nu.json', 'w') as f:
             json.dump(list(lvls), f)
         #evaluate_result(estimate)
@@ -318,3 +318,10 @@ if __name__ == '__main__':
     #convergence_tests()
     #croci_convergence()
     #matern_tests()
+    
+    #with open("randomfieldMC_1000r_20dim.json") as handle:
+    #    results3 = json.load(handle)
+
+    #res20 = [sum(results3[:i+1])/(i+1) for i in range(len(results3))]
+    #print(res20[-1])
+
