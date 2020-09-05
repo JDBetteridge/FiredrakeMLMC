@@ -310,7 +310,7 @@ def matern_tests():
 if __name__ == '__main__':
     #general_test_para()
     
-    test_MC(100, 20)
+    test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 320)
