@@ -145,27 +145,32 @@ def test_MC(reps, mesh_dim):
 
 def croci_convergence():
     with open("MLMC_100r_5lvl_20dim_1nu.json") as handle:
-        level_res1 = json.load(handle) 
-    print(level_res1)
+        level_res1 = json.load(handle)
+        level_res1 = list(map(abs, level_res1))
+    #print(level_res1)
     with open("MLMC_100r_5lvl_20dim_3nu.json") as handle:
         level_res3 = json.load(handle) 
-    print(level_res3)
+        level_res3 = list(map(abs, level_res3))
+    #print(level_res3)
     
     levels = [math.sqrt(2)/20, math.sqrt(2)/40, math.sqrt(2)/80, math.sqrt(2)/160, math.sqrt(2)/320]
     fig, axes = plt.subplots()
 
+
     a = axes.plot(levels[1:], level_res1[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)') 
-    b = axes.plot(levels[1:], level_res3[1:], '*', markersize=10, color='k', label=r'Results ($\nu = 3$)')
-    h2 = [0.0075*i**2 for i in levels]
+    b = axes.plot(levels[1:], level_res3[1:], 'x', markersize=8, color='k', label=r'Results ($\nu = 3$)')
+    h2 = [0.013*i**2 for i in levels]
     h3 = [0.0075*i**4 for i in levels]
 
     axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(h^2)$') 
     axes.plot(levels[1:], h3[1:], ':', color='k', label=r'Theory $O(h^4)$')
-
+    #print(level_res3[1:])
     axes.set_yscale('log')
     axes.set_xscale('log')
-    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\Vert q_\ell\Vert^2_{L^2} - \Vert q_{\ell-1}\Vert^2_{L^2}\right]$', fontsize=16)
+    axes.set_ylabel(r'$|\mathrm{\mathbb{E}} \left[\Vert q_\ell\Vert^2_{L^2} - \Vert q_{\ell-1}\Vert^2_{L^2}\right]|$', fontsize=16)
     axes.set_xlabel(r'$h_\ell$', fontsize=16)
+    axes.set_ylim((10**-13, 10**-4))
+    #axes.set_ylim((10**-13, 10**-4))
     plt.tight_layout()
     plt.style.use('classic')
     plt.legend(loc='best', prop={'size': 13}, numpoints=1)
@@ -328,7 +333,7 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    general_test_para()
+    #general_test_para()
     #general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
@@ -336,7 +341,7 @@ if __name__ == '__main__':
     #test_MC(1000, 160)
     #test_MC(1000, 320)
     #convergence_tests()
-    #croci_convergence()
+    croci_convergence()
     #matern_tests()
     
     #with open("randomfieldMC_1000r_20dim.json") as handle:
