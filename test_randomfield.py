@@ -30,10 +30,10 @@ def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
     coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return FunctionSpace(hierarchy[level_f], "CG", 2), None
+        return FunctionSpace(hierarchy[level_f], "CG", 1), None
     else:
-        return FunctionSpace(hierarchy[level_f], "CG", 2), \
-        FunctionSpace(hierarchy[level_c], "CG", 2)
+        return FunctionSpace(hierarchy[level_f], "CG", 1), \
+        FunctionSpace(hierarchy[level_c], "CG", 1)
 
 
 class problemClass:
@@ -97,7 +97,7 @@ def general_test_para():
     # Levels and repetitions
     s = time.time()
     levels = 5
-    repetitions = [1000, 750, 500, 300, 50]
+    repetitions = [100, 100, 100, 100, 100]
     limits = [1, 1, 1, 1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, comm=MPI.COMM_WORLD, comm_limits=limits)
@@ -106,8 +106,8 @@ def general_test_para():
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
         print(list(lvls))
-        #with open('MLMCtest_5lvl_1nu.json', 'w') as f:
-            #json.dump(list(lvls), f)
+        with open('MLMC_100r_5lvl_20dim_1nu.json', 'w') as f:
+            json.dump(list(lvls), f)
 
 def general_test_serial():
     # Levels and repetitions
@@ -324,7 +324,7 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    #general_test_para()
+    general_test_para()
     #general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
@@ -332,7 +332,7 @@ if __name__ == '__main__':
     #test_MC(1000, 160)
     #test_MC(1000, 320)
     #convergence_tests()
-    croci_convergence()
+    #croci_convergence()
     #matern_tests()
     
     #with open("randomfieldMC_1000r_20dim.json") as handle:
