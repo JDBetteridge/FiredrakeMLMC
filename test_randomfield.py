@@ -15,7 +15,7 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 def samp(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=1)
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=3)
 
     if lvl_c != None:
         samp_c = Function(lvl_c)
@@ -30,10 +30,10 @@ def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
     coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
-        return FunctionSpace(hierarchy[level_f], "CG", 1), None
+        return FunctionSpace(hierarchy[level_f], "CG", 2), None
     else:
-        return FunctionSpace(hierarchy[level_f], "CG", 1), \
-        FunctionSpace(hierarchy[level_c], "CG", 1)
+        return FunctionSpace(hierarchy[level_f], "CG", 2), \
+        FunctionSpace(hierarchy[level_c], "CG", 2)
 
 
 class problemClass:
@@ -106,7 +106,7 @@ def general_test_para():
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
         print(list(lvls))
-        with open('MLMC_100r_5lvl_20dim_1nu.json', 'w') as f:
+        with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
             json.dump(list(lvls), f)
 
 def general_test_serial():
@@ -328,7 +328,7 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    #general_test_para()
+    general_test_para()
     #general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
@@ -336,7 +336,7 @@ if __name__ == '__main__':
     #test_MC(1000, 160)
     #test_MC(1000, 320)
     #convergence_tests()
-    croci_convergence()
+    #croci_convergence()
     #matern_tests()
     
     #with open("randomfieldMC_1000r_20dim.json") as handle:
