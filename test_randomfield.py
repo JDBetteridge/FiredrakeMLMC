@@ -54,7 +54,7 @@ class problemClass:
         """
         #print(self._V.mesh())
         self._qh.assign(0)
-        self._sample.assign(sample)
+        self._sample = sample
         print(assemble(dot(self._sample, self._sample) * dx))
         self._vs.solve()
         print(assemble(dot(self._qh, self._qh) * dx))
@@ -77,8 +77,6 @@ class problemClass:
         #print(assemble(dot(qh, qh) * dx))
         return assemble(dot(qh, qh) * dx)
         
-
-
     
     # HELPER
     def initialise_problem(self):
@@ -108,9 +106,8 @@ def general_test_para():
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
         print(list(lvls))
-        with open('MLMCtest_5lvl_1nu.json', 'w') as f:
-            json.dump(list(lvls), f)
-        #evaluate_result(estimate)
+        #with open('MLMCtest_5lvl_1nu.json', 'w') as f:
+            #json.dump(list(lvls), f)
 
 def general_test_serial():
     # Levels and repetitions
@@ -147,20 +144,23 @@ def test_MC(reps, mesh_dim):
 
 
 def croci_convergence():
-    with open("MLMC_100r_5lvl_20dim_10nu.json") as handle:
+    with open("MLMC_100r_5lvl_20dim_1nu.json") as handle:
         level_res = json.load(handle) 
     print(level_res)
-    levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
+    levels2= [800, 3200, 12800, 51200, 204800]
+    levels = [math.sqrt(2)/20, math.sqrt(2)/40, math.sqrt(2)/80, math.sqrt(2)/160, math.sqrt(2)/320]
     fig, axes = plt.subplots()
 
     a = axes.plot(levels[1:], level_res[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)') 
-    h2 = [0.03*i**2 for i in levels]
+    h2 = [0.0075*i**2 for i in levels]
+    h3 = [0.0075*i**4 for i in levels]
 
     axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(1/n^2)$') 
-    
+    axes.plot(levels[1:], h3[1:], ':', color='k', label=r'Theory $O(1/n^2)$')
+
     axes.set_yscale('log')
     axes.set_xscale('log')
-    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_\ell\right\Vert^2_{L^2} - \left\Vert q_{\ell-1}\right\Vert^2_{L^2}\right]$', fontsize=16)
+    axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\Vert q_\ell\Vert^2_{L^2} - \Vert q_{\ell-1}\Vert^2_{L^2}\right]$', fontsize=16)
     axes.set_xlabel(r'$1/n_\ell$', fontsize=16)
     plt.tight_layout()
     plt.style.use('classic')
@@ -198,7 +198,7 @@ def convergence_tests(param = None):
     
     with open("randomfieldMC_1000r_20dim.json") as handle:
             results3 = json.load(handle)
-    print(results3)
+    #print(results3)
     
     with open("randomfieldMC_1000r_40dim.json") as handle:
             results4 = json.load(handle)
@@ -206,7 +206,19 @@ def convergence_tests(param = None):
     with open("randomfieldMC_1000r_80dim.json") as handle:
             results5 = json.load(handle)
     
-    
+    result = param
+    d_20 = result - sum(results3)/len(results3)
+    d_40 = result - sum(results4)/len(results4)
+    d_80 = result - sum(results5)/len(results5)
+    d_160 = result - sum(results1)/len(results1)
+    d_320 = result - sum(results2)/len(results2) 
+
+    print("% difference from 1000 sample 20x20 MC: ",(d_20*100)/result)
+    print("% difference from 1000 sample 40x40 MC: ",(d_40*100)/result)
+    print("% difference from 1000 sample 80x80 MC: ",(d_80*100)/result)
+    print("% difference from 1000 sample 160x160 MC: ",(d_160*100)/result)
+    print("% difference from 1000 sample 320x320 MC: ",(d_320*100)/result)
+
     res160 = [sum(results1[:i+1])/(i+1) for i in range(len(results1))]
     res320 = [sum(results2[:i+1])/(i+1) for i in range(len(results2))]
     res20 = [sum(results3[:i+1])/(i+1) for i in range(len(results3))]
@@ -216,22 +228,22 @@ def convergence_tests(param = None):
 
     #print(res2[0], results[0])
     limit = res320[-1]
-    show_results(res20, res40, res80, res160, res320, param)
-    #convergence(res160, res80, res40, res20, res320, limit)
+    #show_results(res20, res40, res80, res160, res320, param)
+    convergence(res160, res80, res40, res20, res320, limit)
 
 def show_results(res1, res2, res3, res4, res5, param):
     fig, axes = plt.subplots()
     x2 = [i for i in range(1000)]
-    axes.plot(x2, res1, 'gold', label="20x20") 
-    axes.plot(x2, res2, 'orange', label="40x40") 
-    axes.plot(x2, res3, 'r', label="80x80")
-    axes.plot(x2, res4, 'brown', label="160x160")
-    axes.plot(x2, res5, 'k', label="320x320")
+    #axes.plot(x2, res1, 'gold', label="20x20") 
+    #axes.plot(x2, res2, 'orange', label="40x40") 
+    axes.plot(x2, res3, color='#009c00', label=r"$\ell = 2 \; (80\times80)$")
+    axes.plot(x2, res4, color='#007a00', label=r"$\ell = 3 \; (160\times160)$")
+    axes.plot(x2, res5, 'k', label=r"$\ell = 4 \; (320\times320)$")
     if param != None:
-        plt.axhline(y=param, color='b', label="MLMC Solution")
+        plt.axhline(y=param, linestyle='--' ,color='k', label=r"$\mathrm{\mathbb{E}} \left[\Vert u\Vert^2_{L^2} \right]_{MLMC}$")
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.style.use('classic')
-    axes.legend(loc="best", prop={'size': 10})
+    axes.legend(loc="best", prop={'size': 13})
     
     axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q\right\Vert^2_{L^2} \right]$', fontsize=14)
     axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
@@ -257,7 +269,7 @@ def convergence(res, res2, res3, res4, res5, limit):
 
     fig, axes = plt.subplots()
 
-    axes.plot(logN4, error4, 'gold', label=r'$\ell = 0 \; (20\times20)$') 
+    axes.plot(logN4, error4, color='#00ea00', label=r'$\ell = 0 \; (20\times20)$') 
     #axes.plot(logN3, error3, 'orange', label=r'40x40')
     #axes.plot(logN2, error2, 'r', label=r'80x80') 
     #axes.plot(logN, error, 'brown', label=r'160x160') 
@@ -290,11 +302,12 @@ def matern_tests():
     hier = MeshHierarchy(mesh, 5, 1)
     Vs = [FunctionSpace(i, "CG", 2) for i in hier]
 
-    samp_f = matern(Vs[5], mean=1, variance=10, correlation_length=0.001, smoothness=0.001)
-    samp_c = Function(Vs[4])
+    samp_f = matern(Vs[4], mean=1, variance=0.2, correlation_length=0.2, smoothness=10)
+    samp_c = Function(Vs[3])
     inject(samp_f, samp_c)
-    l_f = problemClass(Vs[5])
-    l_c = problemClass(Vs[4])
+
+    l_f = problemClass(Vs[4])
+    l_c = problemClass(Vs[3])
     res_f = l_f.solve(samp_f)
     res_c = l_c.solve(samp_c)
 
@@ -306,20 +319,20 @@ def matern_tests():
     collection = tripcolor(samp_c, axes=axes, cmap='coolwarm')
     fig.colorbar(collection)
     print(res_f - res_c)
-    plt.show()
+    #plt.show()
 
 
 
 if __name__ == '__main__':
     #general_test_para()
-    
+    #general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 160)
     #test_MC(1000, 320)
-    convergence_tests()
-    #croci_convergence()
+    #convergence_tests()
+    croci_convergence()
     #matern_tests()
     
     #with open("randomfieldMC_1000r_20dim.json") as handle:

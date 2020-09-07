@@ -161,12 +161,4 @@ void apply_cholesky(double *__restrict__ z,
 
     return wnoise
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    mesh = UnitSquareMesh(80, 80)
-    V = FunctionSpace(mesh, "CG", 2)
-    samp_f = matern(V, mean=1, variance=0.2, correlation_length=0.2, smoothness=10)
-    fig, axes = plt.subplots()
-    collection = tripcolor(samp_f, axes=axes, cmap='coolwarm')
-    fig.colorbar(collection)
-    plt.show()
+  

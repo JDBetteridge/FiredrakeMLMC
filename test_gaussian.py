@@ -43,7 +43,6 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        sample = 5
         print(sample)
         self._uh.assign(0)
         self._sample.assign(Constant(sample))

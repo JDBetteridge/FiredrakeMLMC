@@ -32,10 +32,11 @@ class problemClass:
         vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
         return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
 
-mesh0 = UnitSquareMesh(40,40)
+#mesh0 = UnitSquareMesh(40,40)
 mesh1 = UnitSquareMesh(20,20)
-hier = MeshHierarchy(mesh1, 1, 1)
-mesh1 = hier[1]
+hier = MeshHierarchy(mesh1, 4, 1)
+mesh0 = hier[3]
+mesh1 = hier[4]
 
 
 V0 = FunctionSpace(mesh0, "CG", 2)
@@ -47,5 +48,4 @@ l1 = problemClass(V1)
 rg = RandomGenerator(MT19937(12345))
 ans = [Constant(20*rg.random_sample()) for i2 in range(2)]
 
-print([l0.solve(ans[0]) for i in range(10)])
-print([l1.solve(ans[0]) for i in range(10)])
+print(l1.solve(ans[0]) - l0.solve(ans[0]))
