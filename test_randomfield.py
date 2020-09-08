@@ -154,6 +154,7 @@ def croci_convergence():
     #print(level_res3)
     
     levels = [math.sqrt(2)/20, math.sqrt(2)/40, math.sqrt(2)/80, math.sqrt(2)/160, math.sqrt(2)/320]
+    print(levels)
     fig, axes = plt.subplots()
 
 
@@ -234,11 +235,11 @@ def convergence_tests(param = None):
     res40 = [sum(results4[:i+1])/(i+1) for i in range(len(results4))]
     res80 = [sum(results5[:i+1])/(i+1) for i in range(len(results5))]
 
-
+    
     #print(res2[0], results[0])
     limit = res320[-1]
-    #show_results(res20, res40, res80, res160, res320, param)
-    convergence(res160, res80, res40, res20, res320, limit)
+    show_results(res20, res40, res80, res160, res320, param)
+    #convergence(res160, res80, res40, res20, res320, limit)
 
 def show_results(res1, res2, res3, res4, res5, param):
     fig, axes = plt.subplots()
