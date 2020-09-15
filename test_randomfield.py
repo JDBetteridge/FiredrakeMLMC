@@ -15,7 +15,7 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 def samp(lvl_f, lvl_c):
     start = time.time()
     samp_c = None
-    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=3)
+    samp_f = matern(lvl_f, mean=1, variance=0.2, correlation_length=0.2, smoothness=1)
 
     if lvl_c != None:
         samp_c = Function(lvl_c)
@@ -51,33 +51,15 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        """
         #print(self._V.mesh())
         self._qh.assign(0)
-        self._sample = sample
-        print(assemble(dot(self._sample, self._sample) * dx))
+        self._sample.assign(sample)
+        #print(assemble(dot(self._sample, self._sample) * dx))
         self._vs.solve()
-        print(assemble(dot(self._qh, self._qh) * dx))
+        #print(assemble(dot(self._qh, self._qh) * dx))
         #print(self._V.mesh())
         return assemble(dot(self._qh, self._qh) * dx)
-        """
         
-        qh = Function(self._V)
-        q = TrialFunction(self._V)
-        p = TestFunction(self._V)
-
-        a = inner(exp(sample)*grad(q), grad(p))*dx
-        L = inner(Constant(1.0), p)*dx
-        bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
-
-        vp = LinearVariationalProblem(a, L, qh, bcs=bcs)
-        solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
-        vs = LinearVariationalSolver(vp, solver_parameters=solver_param) 
-        vs.solve()
-        #print(assemble(dot(qh, qh) * dx))
-        return assemble(dot(qh, qh) * dx)
-        
-    
     # HELPER
     def initialise_problem(self):
 
@@ -88,7 +70,8 @@ class problemClass:
         L = inner(Constant(1.0), p)*dx
         bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
 
-        vp = LinearVariationalProblem(a, L, self._qh, bcs=bcs)
+        vp = LinearVariationalProblem(a, L, self._qh, bcs=bcs, 
+        constant_jacobian=False)
         solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
         
         return LinearVariationalSolver(vp, solver_parameters=solver_param)
@@ -112,8 +95,8 @@ def general_test_para():
 def general_test_serial():
     # Levels and repetitions
     s = time.time()
-    levels = 3
-    repetitions = [100, 100,100]
+    levels = 2
+    repetitions = [100, 100]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate, lvls = MLMCsolv.solve()
@@ -308,19 +291,13 @@ def convergence_check(res, limit):
 
 
 def matern_tests():
-    mesh = UnitSquareMesh(20, 20)
-    hier = MeshHierarchy(mesh, 5, 1)
+    mesh = UnitSquareMesh(320, 320)
+    hier = MeshHierarchy(mesh, 1, 1)
     Vs = [FunctionSpace(i, "CG", 2) for i in hier]
-
-    samp_f = matern(Vs[4], mean=1, variance=0.2, correlation_length=0.2, smoothness=10)
-    samp_c = Function(Vs[3])
-    inject(samp_f, samp_c)
-
-    l_f = problemClass(Vs[4])
-    l_c = problemClass(Vs[3])
-    res_f = l_f.solve(samp_f)
-    res_c = l_c.solve(samp_c)
-
+    for i in Vs:
+        print(i.dim(), i.comm.Get_size())
+    
+    """
     fig, axes = plt.subplots()
     collection = tripcolor(samp_f, axes=axes, cmap='coolwarm')
     fig.colorbar(collection)
@@ -330,19 +307,22 @@ def matern_tests():
     fig.colorbar(collection)
     print(res_f - res_c)
     #plt.show()
+    """
+
+    
 
 
 
 if __name__ == '__main__':
     #general_test_para()
-    #general_test_serial()
+    general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
     #test_MC(1000, 160)
     #test_MC(1000, 320)
     #convergence_tests()
-    croci_convergence()
+    #croci_convergence()
     #matern_tests()
     
     #with open("randomfieldMC_1000r_20dim.json") as handle:

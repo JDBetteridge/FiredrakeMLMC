@@ -2,50 +2,67 @@ from firedrake import *
 import matplotlib.pyplot as plt
 
 class problemClass:
-
-    def __init__(self, level_obj):
+    def __init__(self, V):
         
-        self._V = level_obj
-        #print(self._V.mesh().num_faces())
-        self._sample = Constant(0)
-        self._uh = Function(self._V)
+        self._V = V
+
+        self._sample = Function(self._V)
+        self._qh = Function(self._V)
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        self._uh.assign(0) 
+        
+        self._qh.assign(0)
         self._sample.assign(sample)
+
+        print(assemble(dot(self._sample, self._sample) * dx))
+
         self._vs.solve()
-        return assemble(dot(self._uh, self._uh) * dx)
-    
-    # HELPER
+
+        result = assemble(dot(self._qh, self._qh) * dx)
+        print(result)
+        return result
+        """
+        qh = Function(self._V)
+        q = TrialFunction(self._V)
+        p = TestFunction(self._V)
+
+        a = inner(exp(sample)*grad(q), grad(p))*dx
+        L = inner(Constant(1.0), p)*dx
+        bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
+
+        vp = LinearVariationalProblem(a, L, qh, bcs=bcs)
+        solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
+        vs = LinearVariationalSolver(vp, solver_parameters=solver_param) 
+        vs.solve()
+        result = assemble(dot(qh, qh) * dx)
+        print(result)
+        return result
+        """
+
     def initialise_problem(self):
-        u = TrialFunction(self._V)
-        v = TestFunction(self._V)
 
-        x, y = SpatialCoordinate(self._V.mesh())
-        base_f = exp(-(((x-0.5)**2)/2) - (((y-0.5)**2)/2))
-        a = (dot(grad(v), grad(u)) + v * u) * dx
+        q = TrialFunction(self._V)
+        p = TestFunction(self._V)
 
-        bcs = DirichletBC(self._V, 0, (1,2,3,4))
-        f = self._sample*base_f
-        L = f * v * dx
-        vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
-        return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
+        a = inner(exp(self._sample)*grad(q), grad(p))*dx
+        L = inner(Constant(1.0), p)*dx
+        bcs = DirichletBC(self._V, Constant(0.0), (1,2,3,4))
 
-#mesh0 = UnitSquareMesh(40,40)
-mesh1 = UnitSquareMesh(20,20)
-hier = MeshHierarchy(mesh1, 4, 1)
-mesh0 = hier[3]
-mesh1 = hier[4]
+        vp = LinearVariationalProblem(a, L, self._qh, bcs=bcs, constant_jacobian=False)
+        solver_param = {'ksp_type': 'cg', 'pc_type': 'gamg'}
+        
+        return LinearVariationalSolver(vp, solver_parameters=solver_param)
 
 
-V0 = FunctionSpace(mesh0, "CG", 2)
-V1 = FunctionSpace(mesh1, "CG", 2)
+rg = RandomGenerator(PCG64(12345))
 
-l0 = problemClass(V0)
-l1 = problemClass(V1)
+mesh = UnitSquareMesh(20, 20)
+V = FunctionSpace(mesh, "CG", 2)
 
-rg = RandomGenerator(MT19937(12345))
-ans = [Constant(20*rg.random_sample()) for i2 in range(2)]
+problem = problemClass(V)
 
-print(l1.solve(ans[0]) - l0.solve(ans[0]))
+for i in range(10):
+    print("Sample {}".format(i))
+    sample = rg.beta(V, 1, 3)
+    problem.solve(sample)
