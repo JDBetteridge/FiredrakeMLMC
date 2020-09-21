@@ -27,7 +27,7 @@ def samp(lvl_f, lvl_c):
 
 
 def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
-    coarse_mesh = UnitSquareMesh(20, 20, comm=comm)
+    coarse_mesh = UnitSquareMesh(320, 320, comm=comm)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
         return FunctionSpace(hierarchy[level_f], "CG", 2), None
@@ -51,13 +51,11 @@ class problemClass:
         self._vs = self.initialise_problem()
     
     def solve(self, sample):
-        #print(self._V.mesh())
         self._qh.assign(0)
         self._sample.assign(sample)
-        #print(assemble(dot(self._sample, self._sample) * dx))
+        s = time.time()
         self._vs.solve()
-        #print(assemble(dot(self._qh, self._qh) * dx))
-        #print(self._V.mesh())
+        firedrake.logging.warning("sample time: {}".format(time.time()-s))
         return assemble(dot(self._qh, self._qh) * dx)
         
     # HELPER
@@ -79,9 +77,9 @@ class problemClass:
 def general_test_para():
     # Levels and repetitions
     s = time.time()
-    levels = 5
-    repetitions = [100, 100, 100, 100, 100]
-    limits = [1, 1, 1, 1, 1]
+    levels = 2
+    repetitions = [64, 64]
+    limits = [1, 1]
     MLMCprob = MLMC_Problem(problemClass, samp, lvl_maker)
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions, comm=MPI.COMM_WORLD, comm_limits=limits)
     estimate, lvls = MLMCsolv.solve()
@@ -89,8 +87,8 @@ def general_test_para():
         print("Total Time Taken: ", time.time() - s)
         print(estimate)
         print(list(lvls))
-        with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
-            json.dump(list(lvls), f)
+        #with open('MLMC_100r_5lvl_20dim_3nu.json', 'w') as f:
+        #    json.dump(list(lvls), f)
 
 def general_test_serial():
     # Levels and repetitions
@@ -291,11 +289,12 @@ def convergence_check(res, limit):
 
 
 def matern_tests():
-    mesh = UnitSquareMesh(320, 320)
+    mesh = UnitSquareMesh(160, 160, comm=MPI.COMM_WORLD)
     hier = MeshHierarchy(mesh, 1, 1)
     Vs = [FunctionSpace(i, "CG", 2) for i in hier]
     for i in Vs:
-        print(i.dim(), i.comm.Get_size())
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            print(i.dim(), i.comm.Get_size())
     
     """
     fig, axes = plt.subplots()
@@ -314,8 +313,8 @@ def matern_tests():
 
 
 if __name__ == '__main__':
-    #general_test_para()
-    general_test_serial()
+    general_test_para()
+    #general_test_serial()
     #test_MC(1000, 20)
     #test_MC(1000, 40)
     #test_MC(1000, 80)
