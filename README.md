@@ -3,7 +3,7 @@
 Code base for general and parallelisable MLMC framework.
 
 ## Files
-* <code>MLMCv6.py</code> - The framework. <code>MLMC_Problem</code> and <code>MLMC_Solver<code/> objects should be 
+* <code>MLMCv6.py</code> - The framework. <code>MLMC_Problem</code> and <code>MLMC_Solver</code> objects should be 
             initilaised by the user. Doc-strings in this file detail the
             necessary inputs.
 
