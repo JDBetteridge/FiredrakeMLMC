@@ -23,3 +23,13 @@ Code base for general and parallelisable MLMC framework.
 
 * <code>saved_results</code> - Directory contianing .json files which store data from
                                 previous runs.
+
+## Dependencies 
+Dependencies of framework found in <code>MLMCv6.py</code>:
+```python
+from mpi4py import MPI
+import numpy as np
+import time
+import logging
+from inspect import signature
+```
