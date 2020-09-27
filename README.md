@@ -33,3 +33,4 @@ import time
 import logging
 from inspect import signature
 ```
+Additionally, the <code>matern.py</code> file has been taken from [a different repository](https://github.com/JDBetteridge/randomfield) and was authored by Dr. Jack Betteridge.
