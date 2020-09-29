@@ -3,7 +3,7 @@ from randomgen import RandomGenerator, MT19937
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 
-from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
+from mlmcparagen import MLMC_Solver, MLMC_Problem, do_MC
 
 class binProblem:
     def __init__(self, level_obj):
@@ -55,7 +55,7 @@ def manual_test(samples):
     print(L0+L1+L2)
     #result is 10.8
 
-def test_MC(reps, level):
+def MC(reps, level):
     string = "BallDrop_{}r_{}lvl".format(reps, level)
 
     results = do_MC(binProblem, reps, level, samp)
@@ -63,10 +63,14 @@ def test_MC(reps, level):
         #json.dump(results, f)
 
     res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
-    fig, axes = plt.subplots()
-    axes.plot([i for i in range(reps)], res2, 'r')
-    plt.show()
+    #fig, axes = plt.subplots()
+    #axes.plot([i for i in range(reps)], res2, 'r')
+    #plt.show()
+    return res2[-1]
 
+def test_mc():
+    result = MC(1000, 3)
+    assert (np.abs(result - 10) < 0.1 ), "MC failed to converge"
 
 if __name__ == '__main__':
     #general_test()
