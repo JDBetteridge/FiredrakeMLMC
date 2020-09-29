@@ -4,6 +4,7 @@ import time
 import logging
 from inspect import signature
 
+
 class MLMC_Solver:
 
     def __init__ (self, problem, levels, repetitions, comm=None, comm_limits=None):
