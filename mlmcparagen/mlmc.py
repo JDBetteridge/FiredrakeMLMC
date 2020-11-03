@@ -9,7 +9,7 @@ from mpi4py import MPI
 
 class MLMC_Solver:
 
-    def __init__ (self, problem, levels, repetitions, comm=None, comm_limits=None):
+    def __init__(self, problem, levels, repetitions, comm=None, comm_limits=None):
         """
         arg:
             problem (class) - MLMC_Solver object containing problem.
@@ -94,7 +94,7 @@ class MLMC_Solver:
             num_comms = 2**(len(colour_list)-1)
 
             # Find decimal number of colour_num binary list
-            colour_num = int("".join(map(str, colour_list)),2)
+            colour_num = int("".join(map(str, colour_list)), 2)
 
             # Make correction for level 0
             if num_comms > self._initial_comm.Get_size():
@@ -102,7 +102,7 @@ class MLMC_Solver:
                 colour_num = self._initial_comm.Get_rank()
 
             rep = self.repetitions[-(i+1)]//num_comms
-            rep_r = self.repetitions[-(i+1)]%num_comms
+            rep_r = self.repetitions[-(i + 1)] % num_comms
             self._comm_ids.insert(0, [num_comms, colour_num])
 
             # Distribute remainder samples across cores
@@ -129,21 +129,20 @@ class MLMC_Solver:
 
     def check_inputs(self, levels, repetitions, comm, comm_limits):
         assert isinstance(repetitions, list) and isinstance(levels, int), \
-        ("Repetitions must be a list and levels an integer")
+            "Repetitions must be a list and levels an integer"
 
         assert len(repetitions) == levels, \
-        ("The levels arguement is not equal to the number of entries in repetitions")
+            "The levels arguement is not equal to the number of entries in repetitions"
 
         if comm is not None:
             assert isinstance(comm, MPI.Intracomm) and isinstance(comm_limits, list), \
-            ("For parallel execution comm and comm_limits inputs must be Intracomm and list types")
+                "For parallel execution comm and comm_limits inputs must be Intracomm and list types"
 
             assert len(comm_limits) == levels, \
-            ("A limit must be set for each MLMC level")
+                "A limit must be set for each MLMC level"
 
-            assert all(comm_limits[i]<=comm_limits[i+1] for i in range(len(comm_limits)-1)), \
-            ("Communicator maximum size must decrease or stay the same with decreasing level")
-
+            assert all(comm_limits[i] <= comm_limits[i+1] for i in range(len(comm_limits) - 1)), \
+                "Communicator maximum size must decrease or stay the same with decreasing level"
 
     def initialiseLogger(self):
         logger = logging.getLogger("MLMC-logger")
@@ -186,27 +185,23 @@ class MLMC_Problem:
         self._did_calculate = None
         self._initial_comm = None
 
-    def check_inputs(self, problem_class, sampler, lvl_maker):
-        assert callable(sampler) and callable(lvl_maker), \
-        ("The sampler and level_maker inputs should be functions")
+    def check_inputs(self, problem_class, sampler, level_maker):
+        assert callable(sampler), "The sampler input should be a function"
+        assert callable(level_maker), "The level_maker input should be a function"
 
-        assert hasattr(problem_class, "solve") and callable(problem_class.solve), \
-        ("The input probem class needs a solve() method - see MLMC_Problem docstring")
+        assert hasattr(problem_class, "solve"), "The input problem class needs a solve() method"
+        assert callable(problem_class.solve), "The input problem class needs a solve() method"
 
         samp_param = signature(sampler).parameters
-        lvl_param = signature(lvl_maker).parameters
+        lvl_param = signature(level_maker).parameters
         lvl_last_arg_default = list(lvl_param.values())[-1].default
         prob_solve_param = signature(problem_class.solve).parameters
 
-        assert len(samp_param) == 2, \
-        ("The sampler input should be a function which takes two inputs")
+        assert len(samp_param) == 2, "The sampler input should be a function which takes two inputs"
 
-        assert len(lvl_param) == 3 and lvl_last_arg_default == MPI.COMM_WORLD, \
-        ("The level maker input should be a function which takes 3 inputs, the third of \n"
-        "which defaults to MPI.COMM_WORLD")
+        assert len(lvl_param) == 3 and lvl_last_arg_default == MPI.COMM_WORLD, "The level maker input should be a function which takes 3 inputs, the third of which defaults to MPI.COMM_WORLD"
 
-        assert len(prob_solve_param) == 2, \
-        ("The solve method of the input problem class should take one argument")
+        assert len(prob_solve_param) == 2, "The solve method of the input problem class should take one argument"
 
     def set_comms(self, comms, did_calc, init_comm):
         self._comms = comms
@@ -223,7 +218,7 @@ class MLMC_Problem:
 
     def newLevel(self, level):
         # if second term is negative return None in 2nd output
-        if self._comms != None:
+        if self._comms is not None:
             lvl_f, lvl_c = self.lvl_maker(level, level-1, self._comms[level])
         else:
             lvl_f, lvl_c = self.lvl_maker(level, level-1)
@@ -236,8 +231,7 @@ class MLMC_Problem:
     def averageLevel(self, level):
         avg = self._level_list[level].get_average()
         if avg is None:
-            assert self._did_calculate[level] == 0,("No calculations done on "
-            "communicator unexpectedly")
+            assert self._did_calculate[level] == 0, "No calculations done on communicator unexpectedly"
             self._level_list[level] = 0.0
         else:
             self._level_list[level] = avg
@@ -245,23 +239,27 @@ class MLMC_Problem:
     def sumAllLevels(self):
         assert all(isinstance(x, float) for x in self._level_list)
 
-        if self._comms is not None :
+        if self._comms is not None:
             self._initial_comm.Reduce([np.array(self._level_list, dtype=np.float64), MPI.DOUBLE],
-            [self._result, MPI.DOUBLE], op=MPI.SUM, root=0)
+                                      [self._result, MPI.DOUBLE],
+                                      op=MPI.SUM,
+                                      root=0)
 
             calculations_made = np.ones_like(self._did_calculate, dtype=np.float64)
             self._initial_comm.Reduce([np.array(self._did_calculate, dtype=np.float64), MPI.DOUBLE],
-            [calculations_made, MPI.DOUBLE], op=MPI.SUM, root=0)
+                                      [calculations_made, MPI.DOUBLE],
+                                      op=MPI.SUM,
+                                      root=0)
 
-            calculations_made[calculations_made==0] = 1
+            calculations_made[calculations_made == 0] = 1
             logging.warning(calculations_made)
-            self._level_list = self._result/ calculations_made
+            self._level_list = self._result/calculations_made
 
         self._result = sum(self._level_list)
 
         return self._result, self._level_list
 
-# HELPER CLASS
+
 class P_level:
     def __init__(self, problem_class, sampler, lvl_f, lvl_c):
         # Assignments
@@ -281,7 +279,6 @@ class P_level:
             return None
         return self._value/self._sample_counter
 
-
     def calculate_term(self):
         """
         Calculates result from new sample and adds it to _value. This is
@@ -296,7 +293,7 @@ class P_level:
 
         if self._lvl_c is not None:
             e_c = self.problem_c.solve(sample_c)
-            self._value +=  e_f - e_c
+            self._value += e_f - e_c
         else:
             self._value += e_f
 
@@ -315,6 +312,3 @@ def do_MC(problem_class, repititions, level_ob, sampler):
         solutions.append(prob.solve(new_sample))
     logging.warning("Total time: {}".format(time.time()-s))
     return solutions
-
-
-
