@@ -1,20 +1,20 @@
-from firedrake import *
-from randomgen import RandomGenerator, MT19937
 import json
-#import matplotlib.pyplot as plt
-
-import matplotlib.pylab as plt
-from matplotlib import rc
-from mpi4py import MPI
 import time
 
-from MLMCv6 import MLMC_Solver, MLMC_Problem, do_MC
+import matplotlib.pylab as plt
+
+from firedrake import *
+from matplotlib import rc
+from mpi4py import MPI
+from randomgen import RandomGenerator, MT19937
+
+from mlmcparagen import MLMC_Solver, MLMC_Problem, do_MC
 
 rg = RandomGenerator(MT19937(12345))
 
+
 def samp(lvl_f, lvl_c):
     ans = 20*rg.random_sample()
-    #print(ans)
     return ans, ans
 
 
@@ -35,13 +35,13 @@ class problemClass:
     a scalar solution
     """
     def __init__(self, level_obj):
-        
+
         self._V = level_obj
         #print(self._V.mesh().num_faces())
         self._sample = Constant(0)
         self._uh = Function(self._V)
         self._vs = self.initialise_problem()
-    
+
     def solve(self, sample):
         print(sample)
         self._uh.assign(0)
@@ -49,7 +49,7 @@ class problemClass:
         self._vs.solve()
         print(assemble(dot(self._uh, self._uh) * dx))
         return assemble(dot(self._uh, self._uh) * dx)
-    
+
     # HELPER
     def initialise_problem(self):
         u = TrialFunction(self._V)
@@ -64,8 +64,8 @@ class problemClass:
         L = f * v * dx
         vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
         return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
-    
-   
+
+
 
 def general_test():
     # Levels and repetitions
@@ -85,13 +85,13 @@ def evaluate_result(result):
     result = result[0]
     with open("Gaussian_1000r_20dim.json") as handle:
         e_20 = json.load(handle)
-    
+
     with open("Gaussian_1000r_40dim.json") as handle:
         e_40 = json.load(handle)
 
     with open("Gaussian_1000r_80dim.json") as handle:
-        e_80 = json.load(handle) 
-    
+        e_80 = json.load(handle)
+
     with open("Gaussian_1000r_160dim.json") as handle:
         e_160 = json.load(handle)
 
@@ -113,11 +113,11 @@ def croci_convergence(level_res):
     levels = [1/20**2, 1/40**2, 1/80**2, 1/160**2, 1/320**2]
     fig, axes = plt.subplots()
 
-    a = axes.plot(levels[1:], level_res[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)') 
+    a = axes.plot(levels[1:], level_res[1:], '+', markersize=10, color='k', label=r'Results ($\nu = 1$)')
     h2 = [0.03*i**2 for i in levels]
 
-    axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(1/n^2)$') 
-    
+    axes.plot(levels[1:], h2[1:], '--', color='k', label=r'Theory $O(1/n^2)$')
+
     axes.set_yscale('log')
     axes.set_xscale('log')
     axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_\ell\right\Vert^2_{L^2} - \left\Vert q_{\ell-1}\right\Vert^2_{L^2}\right]$', fontsize=16)
@@ -132,20 +132,20 @@ def croci_convergence(level_res):
 
 def convergence_tests(param = None):
     """
-    Function which compares result to 10,000 sample MC 
+    Function which compares result to 10,000 sample MC
     """
     with open("Gaussian_1000r_20dim.json") as handle:
         e_20 = json.load(handle)
-    
+
     with open("Gaussian_1000r_40dim.json") as handle:
         e_40 = json.load(handle)
 
     with open("Gaussian_1000r_80dim.json") as handle:
-        e_80 = json.load(handle) 
-    
+        e_80 = json.load(handle)
+
     with open("Gaussian_1000r_160dim.json") as handle:
         e_160 = json.load(handle)
-    
+
 
     res20 = [sum(e_20[:i+1])/(i+1) for i in range(len(e_20))]
     res40 = [sum(e_40[:i+1])/(i+1) for i in range(len(e_40))]
@@ -180,16 +180,16 @@ def convergence(res, res2, res3, res4, limit):
 
     fig, axes = plt.subplots()
 
-    axes.plot(logN, error, 'gold', label=r'20x20') 
+    axes.plot(logN, error, 'gold', label=r'20x20')
     #axes.plot(logN3, error3, 'orange', label=r'40x40')
-    #axes.plot(logN2, error2, 'r', label=r'80x80') 
-    #axes.plot(logN, error, 'brown', label=r'160x160') 
-    axes.plot(logN4, error4, 'k', label=r'160x160') 
-    
+    #axes.plot(logN2, error2, 'r', label=r'80x80')
+    #axes.plot(logN, error, 'brown', label=r'160x160')
+    axes.plot(logN4, error4, 'k', label=r'160x160')
 
-    axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$') 
-    axes.plot(logN, halfx2, '--', color='k') 
-    
+
+    axes.plot(logN, halfx, '--', color='k', label=r'$O(N^{-1/2})$')
+    axes.plot(logN, halfx2, '--', color='k')
+
     axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\left\Vert q_L \right\Vert^2_{L^2} \right] - \mathrm{\mathbb{E}} \left[\left\Vert q_\ell \right\Vert^2_{L^2} \right]$', fontsize=14)
     axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
     axes.set_yscale('log')
@@ -208,11 +208,11 @@ def convergence_check(res, limit):
     return logN, error
 
 def show_results(res1, res2, res3, res4, param):
-    
+
     fig, axes = plt.subplots()
     x2 = [i for i in range(1000)]
-    #axes.plot(x2, res1, 'gold', label="20x20") 
-    #axes.plot(x2, res2, 'orange', label="40x40") 
+    #axes.plot(x2, res1, 'gold', label="20x20")
+    #axes.plot(x2, res2, 'orange', label="40x40")
     #axes.plot(x2, res3, 'r', label="80x80")
     axes.plot(x2, res4, 'k', label=r"$\ell = 3 \; (160\times160)$")
     if param != None:
@@ -220,14 +220,14 @@ def show_results(res1, res2, res3, res4, param):
     #axes.hist(solutions, bins = 40, color = 'blue', edgecolor = 'black')
     plt.style.use('classic')
     axes.legend(loc="best", prop={'size': 13})
-    
+
     axes.set_ylabel(r'$\mathrm{\mathbb{E}} \left[\Vert u \Vert^2_{L^2} \right]$', fontsize=14)
     axes.set_xlabel(r'Repetitions, $N$', fontsize=13)
-    
+
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     axes.tick_params(axis="y", direction='in', which='both')
     axes.tick_params(axis="x", direction='in', which='both')
-    
+
     plt.tight_layout()
     plt.show()
 
@@ -255,7 +255,7 @@ def manual_test(samples):
     level2 = problemClass(FunctionSpace(hierarchy[2], "CG", 2))
 
     level0_results = [level0.solve(samples[i]) for i in range(1)]
-    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range(1, 2)] 
+    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range(1, 2)]
     level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (2, 3)]
 
     L0 = sum(level0_results)/len(level0_results)

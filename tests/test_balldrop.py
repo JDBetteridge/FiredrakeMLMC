@@ -1,7 +1,8 @@
 import numpy as np
-from randomgen import RandomGenerator, MT19937
-from mpi4py import MPI
 import matplotlib.pyplot as plt
+
+from mpi4py import MPI
+from randomgen import RandomGenerator, MT19937
 
 from mlmcparagen import MLMC_Solver, MLMC_Problem, do_MC
 
@@ -43,7 +44,7 @@ def manual_test(samples):
     level1 = binProblem(1)
     level2 = binProblem(2)
     level0_results = [level0.solve(samples[i]) for i in range(100)]
-    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range (100, 150)] 
+    level1_results = [[level1.solve(samples[i]), level0.solve(samples[i])] for i in range (100, 150)]
     level2_results = [[level2.solve(samples[i]), level1.solve(samples[i])] for i in range (150, 160)]
 
     L0 = sum(level0_results)/len(level0_results)
@@ -79,5 +80,4 @@ if __name__ == '__main__':
     #rg = RandomGenerator(MT19937(12345))
     #ans = [[rg.random_sample()*1000 for i in range(10)] for i2 in range(160)]
     #manual_test(ans)
-    
-    
+
