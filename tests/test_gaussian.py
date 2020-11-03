@@ -231,7 +231,7 @@ def show_results(res1, res2, res3, res4, param):
     plt.tight_layout()
     plt.show()
 
-def test_MC(reps, mesh_dim):
+def t_MC(reps, mesh_dim):
     mesh = UnitSquareMesh(mesh_dim, mesh_dim)
     V = FunctionSpace(mesh, "CG", 2)
 
@@ -244,7 +244,7 @@ def test_MC(reps, mesh_dim):
     res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
     fig, axes = plt.subplots()
     axes.plot([i for i in range(reps)], res2, 'r')
-    plt.show()
+    #plt.show()
 
 def manual_test(samples):
     # made for 17 samples
@@ -266,11 +266,11 @@ def manual_test(samples):
 
     print((L0+L1+L2,[L0,L1,L2]))
 
-if __name__ == '__main__':
+def test_mc():
     #general_test()
     #test_MC(1000,80)
     #rg = RandomGenerator(MT19937(12345))
     #ans = [20*rg.random_sample() for i2 in range(3)]
     #manual_test(ans)
     #convergence_tests()
-    test_MC(100, 20)
+    t_MC(100, 20)

@@ -1,14 +1,15 @@
-from firedrake import *
-from randomgen import RandomGenerator, MT19937
 import json
-import matplotlib.pyplot as plt
-from mpi4py import MPI
-
-import time
 import math
+import time
+
+import matplotlib.pyplot as plt
+
+from firedrake import *
+from mpi4py import MPI
+from randomgen import RandomGenerator, MT19937
 
 from mlmcparagen import MLMC_Solver, MLMC_Problem, do_MC
-from mlmcparagen.firedrake_mlmc.matern import matern
+from mlmcparagen.randomfield.matern import matern
 
 plt.rcParams['mathtext.fontset'] = 'stix'
 
@@ -105,7 +106,7 @@ def general_test_serial():
     #evaluate_result(estimate)
 
 
-def test_MC(reps, mesh_dim):
+def t_MC(reps, mesh_dim):
     mesh = UnitSquareMesh(mesh_dim, mesh_dim)
     V = FunctionSpace(mesh, "CG", 2)
 
@@ -312,7 +313,7 @@ def matern_tests():
 
 
 
-if __name__ == '__main__':
+def test_MC():
     general_test_para()
     #general_test_serial()
     #test_MC(1000, 20)
