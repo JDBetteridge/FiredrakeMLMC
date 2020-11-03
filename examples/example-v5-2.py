@@ -1,15 +1,13 @@
-"""
-Like example-v5.py but sampler returns a field
-"""
-
-from firedrake import *
-from randomgen import RandomGenerator, MT19937
 import json
-import matplotlib.pyplot as plt
-
 import time
 
-from MLMCv5 import MLMC_Solver, MLMC_Problem
+import matplotlib.pyplot as plt
+
+from firedrake import *
+from mpi4py import MPI
+from randomgen import RandomGenerator, MT19937
+
+from mlmcparagen import MLMC_Solver, MLMC_Problem
 
 rg = RandomGenerator(MT19937(12345))
 
@@ -17,7 +15,7 @@ def samp(lvl_f, lvl_c):
     start = time.time()
     rand = 20*rg.random_sample()
     samp_c = None
-    
+
     #print(lvl_f.mesh())
     x_f, y_f = SpatialCoordinate(lvl_f.mesh())
     base_f = exp(-(((x_f-0.5)**2)/2) - (((y_f-0.5)**2)/2))
@@ -36,7 +34,7 @@ def samp(lvl_f, lvl_c):
     return samp_f, samp_c
 
 
-def lvl_maker(level_f, level_c):
+def lvl_maker(level_f, level_c, comm=MPI.COMM_WORLD):
     coarse_mesh = UnitSquareMesh(10, 10)
     hierarchy = MeshHierarchy(coarse_mesh, level_f, 1)
     if level_c < 0:
@@ -53,18 +51,18 @@ class problemClass:
     a scalar solution
     """
     def __init__(self, level_obj):
-        
+
         self._V = level_obj
         self._sample = Function(self._V)
         self._uh = Function(self._V)
         self._vs = self.initialise_problem()
-    
+
     def solve(self, sample):
         #print(self._V.mesh())
         self._sample.assign(sample)
         self._vs.solve()
         return assemble(Constant(0.5) * dot(self._uh, self._uh) * dx)
-    
+
     # HELPER
     def initialise_problem(self):
         u = TrialFunction(self._V)
@@ -77,8 +75,8 @@ class problemClass:
         L = f * v * dx
         vp = LinearVariationalProblem(a, L, self._uh, bcs=bcs)
         return LinearVariationalSolver(vp, solver_parameters={'ksp_type': 'cg'})
-    
-   
+
+
 
 def general_test():
     # Levels and repetitions
@@ -88,22 +86,22 @@ def general_test():
     MLMCsolv = MLMC_Solver(MLMCprob, levels, repetitions)
     estimate = MLMCsolv.solve()
     print(estimate)
-    evaluate_result(estimate)
+    #evaluate_result(estimate)
 
 
 def evaluate_result(result):
     with open("10_int.json") as handle:
         e_10 = json.load(handle)
-    
+
     with open("100_int.json") as handle:
         e_100 = json.load(handle)
-    
+
     with open("1000_int.json") as handle:
         e_1000 = json.load(handle)
-    
+
     with open("10000_int.json") as handle:
         e_10000 = json.load(handle)
-    
+
     with open("20000_int.json") as handle:
         e_20000 = json.load(handle)
 
@@ -123,11 +121,11 @@ def evaluate_result(result):
 
 def convergence_tests(param = None):
     """
-    Function which compares result to 10,000 sample MC 
+    Function which compares result to 10,000 sample MC
     """
     with open("20000_list.json") as handle:
             results = json.load(handle)
-    
+
     res2 = [sum(results[:i+1])/(i+1) for i in range(len(results))]
     #print(res2[0], results[0])
     fig, axes = plt.subplots()
